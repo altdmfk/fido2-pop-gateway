@@ -5,9 +5,9 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
 
-def generate_canonical_payload(method: str, path: str, body: bytes, nonce: str, timestamp: int) -> bytes:
+def generate_canonical_payload(method: str, path: str, query: str, body: bytes, nonce: str, timestamp: int) -> bytes:
     body_hash = hashlib.sha256(body).hexdigest()
-    canonical_str = f"{method.upper()}|{path}|{body_hash}|{nonce}|{timestamp}"
+    canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
     return canonical_str.encode("utf-8")
 
 def verify_pop_signature(public_key_pem: bytes, signature: bytes, canonical_payload: bytes) -> bool:

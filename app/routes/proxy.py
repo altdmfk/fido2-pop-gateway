@@ -12,6 +12,8 @@ async def proxy(request: Request, path: str):
     
     headers = dict(request.headers)
     headers.pop("host", None)
+    headers.pop("x-authenticated-user", None)
+    headers.pop("x-authenticated-role", None)
     
     if hasattr(request.state, "user") and request.state.user:
         headers["X-Authenticated-User"] = request.state.user

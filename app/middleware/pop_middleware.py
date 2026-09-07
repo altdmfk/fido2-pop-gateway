@@ -7,6 +7,7 @@ from app.core.security import decode_token
 from app.core.nonce_store import nonce_store
 from app.core.credential_store import get_credential
 from app.core.crypto import verify_pop_signature, generate_canonical_payload
+from anyio import to_thread
 
 async def pop_middleware(request: Request, call_next):
     if not request.url.path.startswith("/api/"):
@@ -69,12 +70,17 @@ async def pop_middleware(request: Request, call_next):
     canonical_payload = generate_canonical_payload(
         method=request.method,
         path=request.url.path,
+        query=request.url.query,
         body=body,
         nonce=nonce,
         timestamp=timestamp
     )
 
-    if not verify_pop_signature(cred.public_key_pem.encode("utf-8"), signature, canonical_payload):
+    is_valid = await to_thread.run_sync(
+        verify_pop_signature, cred.public_key_pem.encode("utf-8"), signature, canonical_payload
+    )
+
+    if not is_valid:
         return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature"})
 
     # Step E (Forwarding)

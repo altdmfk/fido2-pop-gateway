@@ -22,3 +22,7 @@ err*.txt
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Documentation / Research papers
+docs/논문.md
+논문.md

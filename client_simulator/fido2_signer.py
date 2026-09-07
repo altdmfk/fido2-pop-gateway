@@ -18,14 +18,14 @@ class FIDO2ClientSimulator:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, body: bytes, nonce: str, timestamp: int) -> bytes:
+    def generate_canonical_payload(self, method: str, path: str, query: str, body: bytes, nonce: str, timestamp: int) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
-        canonical_str = f"{method.upper()}|{path}|{body_hash}|{nonce}|{timestamp}"
+        canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, body: bytes, nonce: str) -> Tuple[Dict[str, str], bytes]:
+    def sign_request(self, method: str, path: str, query: str, body: bytes, nonce: str) -> Tuple[Dict[str, str], bytes]:
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, path, body, nonce, timestamp)
+        payload = self.generate_canonical_payload(method, path, query, body, nonce, timestamp)
         
         signature = self.private_key.sign(
             payload,
@@ -51,11 +51,12 @@ if __name__ == "__main__":
     # 2. Generate dummy values
     method = "GET"
     path = "/api/v1/resource"
+    query = ""
     body = b""
     nonce = "demo-nonce-1234"
     
     # 3. Call sign_request to generate headers
-    headers, payload = simulator.sign_request(method, path, body, nonce)
+    headers, payload = simulator.sign_request(method, path, query, body, nonce)
     
     # 4. Pretty-print the resulting dictionary
     print("Generated FIDO2 PoP Headers:")

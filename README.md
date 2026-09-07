@@ -46,12 +46,19 @@ sequenceDiagram
     Gateway-->>Client: 200 OK (최종 응답)
 ```
 
-### 아키텍처 방어 계층 (Dual-Layer DoS Defense)
+### 고부하 및 엔터프라이즈(FAPI) 보안 아키텍처 고도화
 
-`/auth/nonce` 엔드포인트는 자원 고갈 공격(DoS)에 대비하여 두 가지 방어 계층을 운용합니다.
+최근 업데이트를 통해 단순 순차 처리 구조를 벗어나, 실제 상용(Production) 수준의 동시성 방어 및 보안 표준(FAPI)을 충족하도록 아키텍처가 개선되었습니다.
 
-1. **L7 Ingress Flooding Mitigation (Rate Limiting)**: 클라이언트 IP 기준으로 초당 10회(10 req/s)를 초과하는 요청이 들어오면 `429 Too Many Requests`를 반환하고 처리를 즉시 중단합니다. 단기 폭증 트래픽으로부터 CPU 자원을 보호하는 첫 번째 방어선입니다.
-2. **State Accumulation Prevention (Storage TTL)**: 정상 발급된 난수라도 60초 TTL이 지나면 백그라운드 GC가 상태 저장소(`nonce_store.py`)에서 삭제합니다. 장기적인 메모리 누적을 방지하는 두 번째 방어선입니다.
+1. **비동기 논블로킹(Non-blocking) 서명 검증**: 
+   - 타원곡선(ECDSA P-256) 검증과 같은 CPU-Bound 연산이 `asyncio` 이벤트 루프를 차단(Block)하지 않도록, `anyio.to_thread`를 활용한 Thread-Pool 위임 구조로 재설계되었습니다. 
+   - 결과적으로 다중 스레드 환경에서 GIL 해제 혜택을 받아 초당 처리량(RPS)이 비약적으로 상승했습니다.
+2. **O(1) 인그레스 Rate Limiter 최적화**: 
+   - IP 기반 초당 10회 요청 제한 로직이 기존 `list.pop(0)` (O(N))에서 `collections.deque.popleft()` (O(1))로 변경되어, 고부하 환경에서의 Thread Lock 경합(Contention) 시간을 상수로 단축시켰습니다.
+3. **FAPI 등급 페이로드 바인딩 (Query String 검증)**: 
+   - 서명 원문(`canonical_payload`) 생성 시 HTTP Method, Path뿐만 아니라 **Query Parameter를 포함하도록 수정**되었습니다. 공격자가 전송 금액(`?amount=`) 등을 위조해 재전송하는 악의적 공격을 원천 차단합니다.
+4. **Zero-Trust 헤더 인젝션 방어**: 
+   - 프록시 중계 전 `X-Authenticated-*` 인바운드 헤더를 명시적으로 파기(Drop)하여, 클라이언트의 악의적인 권한 우회(Header Injection) 시도를 방어합니다.
 
 ---
 
@@ -128,3 +135,28 @@ python -m benchmarks.simulate_attack
 :: 3. 지연 시간 벤치마크 측정
 python -m benchmarks.benchmark_latency
 ```
+
+### 동시성 부하 테스트 실행 (Locust)
+
+단순 지연 시간 측정이 아닌 동시 접속 환경에서의 고부하 성능(TPS)을 검증하려면 `Locust`를 이용한 분산 테스트를 진행합니다. 매 요청마다 ECDSA 서명을 생성해야 하므로, 반드시 다수의 워커를 실행해야 클라이언트 병목을 피할 수 있습니다.
+
+```cmd
+:: 1. 부하 테스트용 의존성 설치
+pip install locust cryptography
+
+:: 2. 마스터 프로세스 실행 (터미널 A)
+cd benchmarks
+locust -f locustfile.py --master
+
+:: 3. 워커 프로세스 실행 (터미널 B, C... CPU 코어 수만큼 실행)
+cd benchmarks
+locust -f locustfile.py --worker
+```
+
+**테스트 시작 방법:**
+- 브라우저에서 `http://localhost:8089`에 접속합니다.
+- **Number of users**: `1000` (예시)
+- **Spawn rate**: `50` (초당 생성 유저 수)
+- **Host**: `http://localhost:8000` (게이트웨이 주소)
+- **Start swarming**을 눌러 부하 테스트를 시작합니다. 
+> 💡 *참고: 본 테스트는 Nonce 발급과 실제 API 호출을 묶어서 1개의 Task로 처리하므로, 게이트웨이가 실제 처리하는 초당 요청 수(RPS)는 Locust 대시보드 수치의 2배입니다.*
