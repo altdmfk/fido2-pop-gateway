@@ -248,7 +248,7 @@ const Dashboard = () => {
         </div>
 
         {/* SECTION 2: Attack Simulator & Fast-Fail Log */}
-        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex flex-col min-h-[480px] lg:h-[500px]">
+        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex flex-col h-[500px]">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-2">
             <AlertTriangle className="text-rose-500" size={20}/>
             Attack Simulator & Fast-Fail Funnel
@@ -288,11 +288,11 @@ const Dashboard = () => {
             />
           </div>
 
-          <div className="flex-1 bg-black/80 rounded-lg border border-zinc-800 p-4 font-mono text-sm overflow-hidden flex flex-col relative shadow-inner">
+          <div className="flex-1 min-h-0 bg-black/80 rounded-lg border border-zinc-800 p-4 font-mono text-sm overflow-hidden flex flex-col relative shadow-inner">
             <div className="flex items-center gap-2 text-zinc-500 mb-3 pb-3 border-b border-zinc-900">
               <Terminal size={14} /> <span>Gateway Terminal / Server Log</span>
             </div>
-            <div ref={logsContainerRef} className="flex-1 overflow-y-auto pr-2 scroll-smooth">
+            <div ref={logsContainerRef} className="flex-1 min-h-0 overflow-y-auto pr-2 scroll-smooth">
               {logs.length === 0 && <span className="text-zinc-600 italic">Waiting for incoming requests...</span>}
               <AnimatePresence initial={false}>
                 {logs.map(log => (
@@ -312,7 +312,7 @@ const Dashboard = () => {
         </div>
 
         {/* SECTIONS 3 & 4: Performance & Payload Metrics */}
-        <div className="lg:col-span-6 flex flex-col gap-6 min-h-[500px] lg:h-[500px]">
+        <div className="lg:col-span-6 flex flex-col gap-6 h-[600px] sm:h-[500px]">
           
           <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex-1 flex flex-col">
              <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-4">
