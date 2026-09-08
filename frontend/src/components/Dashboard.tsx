@@ -26,10 +26,15 @@ const Dashboard = () => {
 
   // --- States for Logs ---
   const [logs, setLogs] = useState<{id: number, time: string, type: 'success' | 'error' | 'info', message: string}[]>([]);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (logsContainerRef.current && logs.length > 0) {
+      logsContainerRef.current.scrollTo({
+        top: logsContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [logs]);
   
   const addLog = (type: 'success' | 'error' | 'info', message: string) => {
@@ -287,7 +292,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 text-zinc-500 mb-3 pb-3 border-b border-zinc-900">
               <Terminal size={14} /> <span>Gateway Terminal / Server Log</span>
             </div>
-            <div className="flex-1 overflow-y-auto pr-2 scroll-smooth">
+            <div ref={logsContainerRef} className="flex-1 overflow-y-auto pr-2 scroll-smooth">
               {logs.length === 0 && <span className="text-zinc-600 italic">Waiting for incoming requests...</span>}
               <AnimatePresence initial={false}>
                 {logs.map(log => (
@@ -302,7 +307,6 @@ const Dashboard = () => {
                   </motion.div>
                 ))}
               </AnimatePresence>
-              <div ref={logsEndRef} />
             </div>
           </div>
         </div>
