@@ -1,5 +1,8 @@
 # Design and Performance Analysis of a FIDO2 Hardware-Isolated Key-Based Proof-of-Possession Reverse Proxy Gateway
 
+**Ahrum Kang**  
+*September 8, 2026*
+
 ---
 
 ## Abstract

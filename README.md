@@ -187,3 +187,20 @@ locust -f locustfile.py --worker
 - **Host**: `http://localhost:8000` (게이트웨이 주소)
 - **Start swarming**을 눌러 부하 테스트를 시작합니다. 
 > 💡 *참고: 본 테스트는 Nonce 발급과 실제 API 호출을 묶어서 1개의 Task로 처리하므로, 게이트웨이가 실제 처리하는 초당 요청 수(RPS)는 Locust 대시보드 수치의 2배입니다.*
+
+---
+
+## 7. 주요 산출물 및 연구 검증 문서 (`docs/`)
+
+본 연구 프로젝트의 신뢰성과 재현성을 입증하기 위해 작성된 핵심 보고서 및 산출물 목록입니다.
+
+| 파일 경로 | 구분 | 설명 |
+|---|---|---|
+| **[`docs/verification.md`](docs/verification.md)** | **연구 검증 보고서** | **가설 수립부터 5단계 실증 검증(가설 설정, 선행연구 분석, 실험 설계, 결과 해석, AI 협업 기록)까지 전 과정을 체계적으로 기술한 핵심 검증 문서** |
+| **[`docs/paper.md`](docs/paper.md)** | 국문 연구 논문 | 학술 논문 양식의 FIDO2 PoP 게이트웨이 설계 및 성능 분석 국문 전문 (표지 정보 포함) |
+| **[`docs/paper_en.md`](docs/paper_en.md)** | 영문 연구 논문 | 글로벌 배포 및 웹 대시보드 연동용 영문 전문 (Cover 정보 포함) |
+| **`docs/FIDO2_PoP_Gateway.docx`** | 공식 제출 논문 | 제출용 국문 논문 서식 문서 (표지, 작성자: 강아름, 작성일 포함) |
+| **`docs/FIDO2_PoP_Gateway_EN.docx`** | 공식 제출 논문 | 제출용 영문 논문 서식 문서 (Cover, Author: Ahrum Kang, Date 포함) |
+| **`docs/benchmark_results.json`** | 벤치마크 원자료 | 3가지 검증 모드(JWT, RSA, ECDSA) 100회 반복 측정 지연시간 및 페이로드 Raw 데이터 |
+| **`docs/cs_security_deep_dive_ko.md`** | 보안 심층 분석 | 컴퓨터공학 관점의 토큰 탈취 취약점 및 FIDO2 보안 심층 분석서 |
+
