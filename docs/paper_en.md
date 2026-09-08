@@ -194,7 +194,7 @@ The original gateway architecture had a bottleneck where the event loop was bloc
 
 ---
 
-## VI. Conclusion and Future Work
+## VI. Discussion and Future Work
 
 ### 1. Summary of Research Results
 
