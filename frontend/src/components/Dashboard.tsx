@@ -18,7 +18,7 @@ const Dashboard = () => {
 
   // --- States for Paper Modal ---
   const [isPaperOpen, setIsPaperOpen] = useState(false);
-  const [paperLang, setPaperLang] = useState<'ko' | 'en'>('ko');
+  const [paperLang, setPaperLang] = useState<'ko' | 'en'>('en');
   const paperContent = paperLang === 'ko' ? originalPaper : englishPaper;
 
   // --- States for Logs ---
@@ -162,7 +162,7 @@ const Dashboard = () => {
             className="group flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition-all px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm"
           >
             <FileText className="text-blue-400" size={18} />
-            <span className="text-zinc-200 group-hover:text-white">논문 보기</span>
+            <span className="text-zinc-200 group-hover:text-white">View Paper</span>
           </button>
         </div>
       </header>
