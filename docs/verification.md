@@ -25,6 +25,7 @@
 * **T10-C06 측정 방법**:
 * 지연시간: 단일 클라이언트-게이트웨이 간 100회 연속 HTTP 요청의 Mean(평균) 및 P95 왕복 시간(ms) 실측
 * 페이로드: HTTP `X-FIDO2-Signature` 등 부가 헤더의 전송 바이트 크기 측정
+* 동시 접속 부하: 부하 생성 도구(Locust)를 이용해 100명의 가상 유저 환경에서 초당 처리량(RPS) 및 지연시간 측정
 
 
 * **T10-C07 가설이 틀렸다면 나올 결과**:
@@ -33,6 +34,7 @@
 
 * **T10-C08 데이터 수집 기간/범위**:
 * 단일 격리 로컬 호스트(Intel Core i7, 16GB RAM) 환경에서 3개 모드 각 100회(총 300회) 트랜잭션 측정
+* 동시 접속 부하: 100명의 가상 유저가 15초간 지속적으로 FIDO2 서명 헤더를 포함한 요청 전송
 
 
 * **T10-C09 AI와 가설을 다듬은 과정**:
@@ -100,10 +102,10 @@
 
 | 구분 | 조건 및 항목 |
 | --- | --- |
-| **바꾼 조건 (독립변수)** | 서명 및 검증 방식 (Mode A: JWT 무서명, Mode B: RSA-2048, Mode C: ECDSA P-256) |
+| **바꾼 조건 (독립변수)** | 서명 및 검증 방식 (Mode A: JWT 무서명, Mode B: RSA-2048, Mode C: ECDSA P-256), 동시성 아키텍처 (동기식 vs 비동기 스레드 풀) |
 | **고정한 조건 (통제변수)** | 동일 하드웨어(i7/16GB), 동일 네트워크 루프백, 동일 백엔드 Upstream 로직, 동일 요청 본문 |
-| **반복 횟수 (표본 수)** | 모드별 100회 (총 300회 트랜잭션, 최소 기준 10회 대폭 상회) |
-| **측정 지표 (종속변수)** | 평균 지연시간(ms), P95 지연시간(ms), 부가 HTTP 헤더 크기(Bytes) |
+| **반복 횟수 (표본 수)** | 모드별 100회 (총 300회 트랜잭션), 부하 테스트는 100명 가상 유저 기준 15초간 연속 전송 |
+| **측정 지표 (종속변수)** | 평균/P95 지연시간(ms), 부가 HTTP 헤더 크기(Bytes), 초당 처리량(RPS) |
 
 * **T10-C25 ~ C26 원자료 파일**: `docs/benchmark_results.json` (모드별 100회 측정 원자료 저장 파일)
 * **T10-C28 ~ C29 재현 절차**: 서버 구동 후 `python -m benchmarks.benchmark_latency` 실행 단 한 줄로 결과 재현 및 결과 파일(`docs/benchmark_results.json`) 자동 생성 가능.
@@ -116,6 +118,7 @@
 * Mode A (JWT): 4.29 ms / P95: 6.54 ms / 헤더 0 Bytes
 * Mode B (RSA): 5.86 ms (+36.73 %) / P95: 9.19 ms / 헤더 499 Bytes
 * Mode C (ECDSA): 5.39 ms (+25.65 %) / P95: 6.54 ms / 헤더 252 Bytes
+* 동시성 최적화(비동기 스레드 풀 적용 후): 동시 접속 처리량 145 RPS $\rightarrow$ 780 RPS (+437 %), P95 지연시간 1,400 ms 초과 $\rightarrow$ 78 ms (-94 %)
 
 
 * **T10-C32 ~ C34 가설 검증 판단**:
@@ -123,6 +126,7 @@
   1. 지연시간 오버헤드: 절대 차이 기준 약 1.10 ms에 불과하며, 상대 오버헤드는 **+25.65 %**로 기준치(+25 %)에 극도로 근접 수렴함. 특히 **P95 지연시간은 6.54 ms로 Mode A(6.54 ms)와 동일**하여 꼬리 지연시간(Tail Latency) 오버헤드가 발생하지 않음.
   2. RSA 대비 연산/지연시간 우위: Mode B(평균 5.86 ms, P95 9.19 ms) 대비 Mode C(평균 5.39 ms, P95 6.54 ms)가 평균 8.0 %, P95 기준 28.8 % 더 우수한 성능을 입증함.
   3. 헤더 페이로드 절감률: 499 Bytes 대비 252 Bytes로 **약 49.5 % (~50 %) 절감** 달성.
+  4. 대규모 트래픽 방어 실효성: 동시성 아키텍처 최적화를 통해 100명의 동시 사용자 환경에서 처리량을 437 % 향상(780 RPS)시켜 비대칭 암호 자원 고갈 공격(DoS)에 대한 실무적 방어 가능성을 입증함.
 
 
 
@@ -138,13 +142,14 @@
 ### [5단계: 최종 제출물 3벌 구성 (T10-C41 ~ C51)]
 
 1. **완성 논문 1편 (PDF 또는 Markdown)**
-* 표지(제목, 작성자, 작성일) + 국문/영문 초록 + 본문(I. 서론 ~ VI. 결론) + 참고문헌 완비.
-
+* `docs/paper.md` 및 `docs/paper_en.md` (국문/영문 Markdown 논문)
+* `docs/FIDO2_PoP_Gateway.docx`, `docs/FIDO2_PoP_Gateway.pdf`, `docs/FIDO2_PoP_Gateway_EN.docx`, `docs/FIDO2_PoP_Gateway_EN.pdf` (제출용 양식)
 
 2. **재현 패키지 ZIP (`replication_package.zip`)**
 * `docs/benchmark_results.json` (원자료 파일)
-* `benchmarks/benchmark_latency.py` (실행 스크립트)
-* `benchmarks/simulate_attack.py` (보안 검증 스크립트)
+* `benchmarks/benchmark_latency.py` (지연시간 벤치마크 실행 스크립트)
+* `benchmarks/simulate_attack.py` (보안 검증 모의 공격 스크립트)
+* `benchmarks/locustfile.py` (동시 접속 부하 생성 스크립트)
 * `README.md` (실행 환경 및 재현 매뉴얼)
 
 
