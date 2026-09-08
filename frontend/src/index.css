@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+body {
+  background-color: var(--color-zinc-950);
+  color: var(--color-slate-200);
+}
+
+/* Custom scrollbar for a sleeker look */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-zinc-950);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-800);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-700);
+}

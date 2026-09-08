@@ -21,14 +21,22 @@ class RSAPoPClientSimulator:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, body: bytes, nonce: str, timestamp: int) -> bytes:
+    def generate_canonical_payload(self, method: str, path: str, *args, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
+        if len(args) == 3:
+            body, nonce, timestamp = args
+        elif len(args) == 4:
+            query, body, nonce, timestamp = args
         body_hash = hashlib.sha256(body).hexdigest()
-        canonical_str = f"{method.upper()}|{path}|{body_hash}|{nonce}|{timestamp}"
+        canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, body: bytes, nonce: str) -> Tuple[Dict[str, str], bytes]:
+    def sign_request(self, method: str, path: str, *args, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
+        if len(args) == 2:
+            body, nonce = args
+        elif len(args) == 3:
+            query, body, nonce = args
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, path, body, nonce, timestamp)
+        payload = self.generate_canonical_payload(method, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
         signature = self.private_key.sign(
             payload,

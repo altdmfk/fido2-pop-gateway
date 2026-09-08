@@ -78,9 +78,9 @@ sequenceDiagram
 
 | 검증 모드 | Mean (평균 지연) | P95 (95백분위 지연) | Payload (헤더 크기) | 상대 오버헤드 |
 |---|---|---|---|---|
-| **Mode A (표준 JWT 검증)** | 4.03ms | 7.28ms | 0 Bytes | Baseline |
-| **Mode B (RSA-2048 PoP)** | 4.87ms | 7.25ms | 499 Bytes | +20.96% |
-| **Mode C (ECDSA P-256 PoP)** | 4.88ms | 6.20ms | 252 Bytes | +21.19% |
+| **Mode A (표준 JWT 검증)** | 4.29ms | 6.54ms | 0 Bytes | Baseline |
+| **Mode B (RSA-2048 PoP)** | 5.86ms | 9.19ms | 499 Bytes | +36.73% |
+| **Mode C (ECDSA P-256 PoP)** | 5.39ms | 6.54ms | 252 Bytes | +25.65% |
 
 **기술적 함의 및 하드웨어 시사점**:
 
@@ -90,7 +90,27 @@ sequenceDiagram
 
 ---
 
-## 4. 확장성 한계 및 향후 과제 (Limitations & Future Work)
+## 4. 실시간 웹 대시보드 (Interactive Dashboard)
+
+본 프로젝트는 시스템의 보안성 및 성능 최적화 결과를 직관적으로 증명하기 위해 **React + Vite 기반의 실시간 시각화 대시보드**를 제공합니다.
+
+> 🌐 **Live Demo (GitHub Pages):** [https://altdmfk.github.io/fido2-pop-gateway/](https://altdmfk.github.io/fido2-pop-gateway/)
+
+1. **아키텍처 및 공격 시뮬레이터 (Attack Simulator)**
+   - **정상 흐름 및 공격 모의**: 대시보드의 버튼을 클릭하여 `정상 요청`, `세션 하이재킹`, `재전송 공격`, `페이로드 변조` 상황을 시뮬레이션할 수 있습니다.
+   - **애니메이션 트레이싱**: 클라이언트 $\rightarrow$ TPM $\rightarrow$ Gateway $\rightarrow$ Upstream으로 이어지는 패킷의 이동을 시각적으로 추적합니다.
+   - **Fast-Fail 터미널 로그**: 게이트웨이 내부에서 발생하는 5단계 검증 파이프라인(헤더, 타임스탬프, 난수, 다이제스트, 서명 수학 검증)의 동작과 차단 사유를 터미널 형태의 로그로 실시간 출력합니다.
+
+2. **성능 벤치마크 시각화 (Performance Analytics)**
+   - **동시성 최적화 차트**: 동기(Sync) 대비 비동기(Async) 전환 후 얻어낸 **처리량 437% 향상(145 $\rightarrow$ 780 RPS)** 및 **지연시간 94% 감소** 지표를 차트로 제공합니다.
+   - **페이로드 오버헤드 차트**: RSA-2048 대비 ECDSA P-256 적용 시 얻는 **50% 이상의 대역폭 절감 효과**를 도넛 차트로 비교 분석합니다.
+
+3. **논문 열람 기능**
+   - 별도의 다운로드 없이 대시보드 우측 상단의 `[논문 보기]` 버튼을 클릭하여 전체 연구 내용을 즉시 열람할 수 있습니다.
+
+---
+
+## 5. 확장성 한계 및 향후 과제 (Limitations & Future Work)
 
 현재 게이트웨이는 단일 노드(Single-Node) 환경을 전제로 한 프로토타입입니다. 다중 인스턴스 운용을 위해서는 다음 사항을 고려해야 합니다.
 
@@ -100,7 +120,7 @@ sequenceDiagram
 
 ---
 
-## 5. 로컬 실행 및 검증 매뉴얼 (Local Execution & Verification)
+## 6. 로컬 실행 및 검증 매뉴얼 (Local Execution & Verification)
 
 ### 환경 설정 및 서버 구동
 
@@ -113,12 +133,19 @@ sequenceDiagram
 :: 2. 패키지 설치
 pip install -r requirements.txt
 
-:: 3. 게이트웨이 및 Upstream 서버 구동 (데몬/백그라운드 제외, 터미널 2개 사용 권장)
+:: 3. 게이트웨이 및 Upstream 서버 구동 (터미널 2개 사용 권장)
 :: 터미널 A (Upstream Server):
 python -m uvicorn upstream.mock_server:app --host 127.0.0.1 --port 8080
 
 :: 터미널 B (Gateway Server):
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+:: 4. 시각화 대시보드 구동 (Frontend)
+:: 터미널 C (Frontend Dashboard):
+cd frontend
+npm install
+npm run dev
+:: 브라우저에서 http://localhost:5173 에 접속하여 실시간 아키텍처 및 공격 시뮬레이터를 확인하세요.
 ```
 
 ### 테스트 및 벤치마크 실행

@@ -14,8 +14,13 @@ def test_canonical_payload_generation():
     payload = generate_canonical_payload(method, path, body, nonce, timestamp)
     import hashlib
     expected_hash = hashlib.sha256(b'{"data": "test"}').hexdigest()
-    expected = f"POST|/api/v1/resource|{expected_hash}|test-nonce-123|1600000000".encode("utf-8")
+    expected = f"POST|/api/v1/resource||{expected_hash}|test-nonce-123|1600000000".encode("utf-8")
     assert payload == expected
+
+    # Test with query string
+    payload_with_query = generate_canonical_payload(method, path, "filter=active", body, nonce, timestamp)
+    expected_with_query = f"POST|/api/v1/resource|filter=active|{expected_hash}|test-nonce-123|1600000000".encode("utf-8")
+    assert payload_with_query == expected_with_query
 
 def test_client_simulator_signing_and_verification():
     client = FIDO2ClientSimulator()

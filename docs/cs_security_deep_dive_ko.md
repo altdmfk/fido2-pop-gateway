@@ -67,7 +67,7 @@ SigningPayload에 본문 원본 대신 SHA-256(BODY) 다이제스트를 사용�
 3. **가비지 컬렉션(GC)**: 만료된 항목을 주기적으로 순회하여 삭제한다. 60초가 지난 타임스탬프를 가진 요청은 캐시 조회조차 수행하지 않고 선제 기각한다.
 
 💡 [심화 개념: 분산 환경에서의 원자적 제어(Atomic Control) 및 경합 조건]
-  단일 노드에서는 threading.Lock을 통한 상호 배제(Mutex)가 유효하지만, 게이트웨이가 다중 인스턴스로 수평 확장(Scale-out)되면 로컬 메모리 락은 효력을 상실한다. 이 경우 난수 저장소를 Redis와 같은 분산 인메모리 스토어로 이관해야 한다. 특히 공격자가 동일한 Nonce를 가진 유효 요청 2개를 마이크로초 단위로 동시에 전송하는 TOCTOU(Time-of-Check to Time-of-Use) 공격을 막기 위해, 단순 '조회 후 삭제(GET then DEL)'가 아닌 Redis Lua Script 기반의 원자적 연산(Atomic Compare-and-Delete)을 적용해야 동시성 결함을 완벽히 해결할 수 있다.
+  단일 노드에서는 threading.Lock을 통한 상호 배제(Mutex)가 유효하지만, 게이트웨이가 다중 인스턴스로 수평 확장(Scale-out)되면 로컬 메모리 락은 효력을 상실한다. 이 경우 난수 저장소를 Redis와 같은 분산 인메모리 스토어로 이관해야 한다. 특히 공격자가 동일한 Nonce를 가진 유효 요청 2개를 마이크로초 단위로 동시에 전송하는 TOCTOU(Time-of-Check to Time-of-Use) 공격을 막기 위해, 단순 '조회 후 삭제(GET then DEL)'가 아닌 Redis Lua Script 기반의 원자적 연산(Atomic Compare-and-Delete)을 적용해야 동시성 결함을 히 해결할 수 있다.
 
 ---
 
