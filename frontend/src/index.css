@@ -9,6 +9,7 @@ body {
 /* Custom scrollbar for a sleeker look */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
+  height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: var(--color-zinc-950);
@@ -20,3 +21,11 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-zinc-700);
 }
+
+/* Ensure display equations do not cause mobile layout overflow */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+

@@ -7,6 +7,9 @@ import {
 import { Shield, Server, Cpu, Activity, Lock, AlertTriangle, Terminal, XOctagon, FileText, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import originalPaper from '../../../docs/paper.md?raw';
 import englishPaper from '../../../docs/paper_en.md?raw';
 
@@ -143,7 +146,7 @@ const Dashboard = () => {
   const PIE_COLORS = ['#3b82f6', '#10b981'];
   
   return (
-    <div className="min-h-screen bg-zinc-950 text-slate-200 p-6 lg:p-8 font-sans selection:bg-cyan-900 selection:text-cyan-100 relative">
+    <div className="min-h-screen bg-zinc-950 text-slate-200 p-4 sm:p-6 lg:p-8 font-sans selection:bg-cyan-900 selection:text-cyan-100 relative">
       
       {/* 1. Dashboard Header */}
       <header className="mb-8 border-b border-zinc-800 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -171,70 +174,76 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* SECTION 1: Interactive Architecture Flow (Full Span) */}
-        <div className="lg:col-span-12 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-6 lg:p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
-          <div className="flex justify-between items-center mb-10">
+        <div className="lg:col-span-12 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 lg:p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-10">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
               <Cpu className="text-cyan-500" size={20}/>
               Authentication Architecture
             </h2>
-            <div className="text-sm text-zinc-400 bg-zinc-950 px-4 py-2 rounded-lg border border-zinc-800">
+            <div className="text-xs sm:text-sm text-zinc-400 bg-zinc-950 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-zinc-800">
               Select a scenario from the Attack Simulator below to animate the flow.
             </div>
           </div>
           
-          <div className="relative flex justify-between items-center py-10 px-4 lg:px-16 w-full max-w-5xl mx-auto">
-            {/* Background Connection Line */}
-            <div className="absolute top-1/2 left-16 right-16 h-[2px] bg-zinc-800 -translate-y-1/2 z-0"></div>
-            
-            {/* Nodes */}
-            <Node icon={<Cpu size={28} />} title="Client Application" />
-            <Node icon={<Lock size={28} />} title="FIDO2 TPM Hardware" active={packetStage === 1 || packetStage === 2} isError={packetStage > 0 && currentScenario !== 'normal'} />
-            <Node icon={<Shield size={28} />} title="PoP Gateway" active={packetStage === 2 || packetStage === 3 || packetStage === 4} isGateway isError={packetStage === 4} />
-            <Node icon={<Server size={28} />} title="Upstream Server" active={packetStage === 3} />
+          <div className="w-full overflow-x-auto pb-4 pt-2 custom-scrollbar">
+            <div className="relative flex justify-between items-center py-10 px-6 sm:px-12 lg:px-16 w-full min-w-[640px] max-w-5xl mx-auto">
+              {/* Background Connection Line */}
+              <div className="absolute top-1/2 left-16 right-16 h-[2px] bg-zinc-800 -translate-y-1/2 z-0"></div>
+              
+              {/* Nodes */}
+              <Node icon={<Cpu size={28} />} title="Client Application" />
+              <Node icon={<Lock size={28} />} title="FIDO2 TPM Hardware" active={packetStage === 1 || packetStage === 2} isError={packetStage > 0 && currentScenario !== 'normal'} />
+              <Node icon={<Shield size={28} />} title="PoP Gateway" active={packetStage === 2 || packetStage === 3 || packetStage === 4} isGateway isError={packetStage === 4} />
+              <Node icon={<Server size={28} />} title="Upstream Server" active={packetStage === 3} />
 
-            {/* Animated Packet */}
-            <AnimatePresence>
-              {packetStage > 0 && packetStage < 4 && (
-                <motion.div
-                  className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
-                  initial={{ left: '10%', opacity: 0 }}
-                  animate={{ 
-                    left: packetStage === 1 ? '38%' : packetStage === 2 ? '62%' : '88%',
-                    opacity: 1
-                  }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                >
-                  <div className={`text-xs font-bold px-3 py-1.5 rounded mb-3 whitespace-nowrap backdrop-blur-md border ${currentScenario === 'normal' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-rose-500/10 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]'}`}>
-                    {currentScenario === 'normal' ? 'JWT + Nonce + ECDSA Sig' : 
-                     currentScenario === 'hijack' ? 'JWT (Missing Sig)' :
-                     currentScenario === 'replay' ? 'JWT + Used Nonce + Sig' :
-                     'JWT + Modified Body + Sig'}
-                  </div>
-                  <div className={`w-4 h-4 rounded-full ${currentScenario === 'normal' ? 'bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]'}`}></div>
-                </motion.div>
-              )}
-              {/* Blocked Animation at Gateway */}
-              {packetStage === 4 && (
-                <motion.div
-                  className="absolute top-1/2 left-[62%] -translate-y-1/2 z-20 flex flex-col items-center"
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: [1, 1.3, 1], opacity: 1 }}
-                  exit={{ opacity: 0, scale: 0 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <div className="bg-rose-500/20 border border-rose-500/50 text-rose-400 text-xs font-bold px-3 py-1.5 rounded shadow-[0_0_15px_rgba(244,63,94,0.3)] mb-3 whitespace-nowrap backdrop-blur-md">
-                    Connection Terminated
-                  </div>
-                  <XOctagon className="text-rose-500 drop-shadow-[0_0_20px_rgba(244,63,94,1)]" size={32} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+              {/* Animated Packet */}
+              <AnimatePresence>
+                {packetStage > 0 && packetStage < 4 && (
+                  <motion.div
+                    className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
+                    initial={{ left: '10%', opacity: 0 }}
+                    animate={{ 
+                      left: packetStage === 1 ? '38%' : packetStage === 2 ? '62%' : '88%',
+                      opacity: 1
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                  >
+                    <div className={`text-xs font-bold px-3 py-1.5 rounded mb-3 whitespace-nowrap backdrop-blur-md border ${currentScenario === 'normal' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-rose-500/10 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]'}`}>
+                      {currentScenario === 'normal' ? 'JWT + Nonce + ECDSA Sig' : 
+                       currentScenario === 'hijack' ? 'JWT (Missing Sig)' :
+                       currentScenario === 'replay' ? 'JWT + Used Nonce + Sig' :
+                       'JWT + Modified Body + Sig'}
+                    </div>
+                    <div className={`w-4 h-4 rounded-full ${currentScenario === 'normal' ? 'bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]'}`}></div>
+                  </motion.div>
+                )}
+                {/* Blocked Animation at Gateway */}
+                {packetStage === 4 && (
+                  <motion.div
+                    className="absolute top-1/2 left-[62%] -translate-y-1/2 z-20 flex flex-col items-center"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: [1, 1.3, 1], opacity: 1 }}
+                    exit={{ opacity: 0, scale: 0 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div className="bg-rose-500/20 border border-rose-500/50 text-rose-400 text-xs font-bold px-3 py-1.5 rounded shadow-[0_0_15px_rgba(244,63,94,0.3)] mb-3 whitespace-nowrap backdrop-blur-md">
+                      Connection Terminated
+                    </div>
+                    <XOctagon className="text-rose-500 drop-shadow-[0_0_20px_rgba(244,63,94,1)]" size={32} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+          {/* Mobile scroll hint */}
+          <div className="sm:hidden text-center text-xs text-zinc-500 mt-1 flex items-center justify-center gap-1">
+            <span>↔ 좌우로 스크롤하여 전체 아키텍처 흐름 확인</span>
           </div>
         </div>
 
         {/* SECTION 2: Attack Simulator & Fast-Fail Log */}
-        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-6 shadow-2xl flex flex-col h-[500px]">
+        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex flex-col min-h-[480px] lg:h-[500px]">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-2">
             <AlertTriangle className="text-rose-500" size={20}/>
             Attack Simulator & Fast-Fail Funnel
@@ -299,14 +308,14 @@ const Dashboard = () => {
         </div>
 
         {/* SECTIONS 3 & 4: Performance & Payload Metrics */}
-        <div className="lg:col-span-6 flex flex-col gap-6 h-[500px]">
+        <div className="lg:col-span-6 flex flex-col gap-6 min-h-[500px] lg:h-[500px]">
           
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-6 shadow-2xl flex-1 flex flex-col">
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex-1 flex flex-col">
              <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-4">
               <Activity className="text-cyan-500" size={20}/>
               Concurrency Optimization
             </h2>
-            <div className="flex-1 grid grid-cols-2 gap-6 min-h-0">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6 min-h-[300px] sm:min-h-0">
               
               <div className="h-full flex flex-col">
                 <h3 className="text-xs text-zinc-400 text-center mb-4 tracking-wider font-semibold">
@@ -451,11 +460,12 @@ const Dashboard = () => {
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-zinc-950">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar bg-zinc-950">
                 {paperContent ? (
                   <div className="prose prose-invert prose-zinc max-w-none prose-headings:text-zinc-100 prose-a:text-blue-400 prose-strong:text-zinc-200">
                     <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                       components={{
                         img: ({ ...props }) => {
                           let src = props.src || '';
@@ -486,13 +496,13 @@ const Dashboard = () => {
 // --- Helper Components ---
 
 const Node = ({ icon, title, active, isGateway = false, isError = false }: { icon: React.ReactNode, title: string, active?: boolean, isGateway?: boolean, isError?: boolean }) => (
-  <div className={`relative z-10 flex flex-col items-center justify-center w-28 h-28 rounded-2xl border-2 transition-all duration-500 bg-zinc-950 
+  <div className={`relative z-10 flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 transition-all duration-500 bg-zinc-950 
     ${active && !isGateway && !isError ? 'border-cyan-500 shadow-[0_0_25px_rgba(6,182,212,0.4)] transform scale-105' : ''}
     ${active && isGateway && !isError ? 'border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.4)] transform scale-105' : ''}
     ${isError ? 'border-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.4)] transform scale-105' : ''}
     ${!active && !isError ? 'border-zinc-800' : ''}
   `}>
-    <div className={`mb-3 transition-colors duration-500 
+    <div className={`mb-2 sm:mb-3 transition-colors duration-500 
       ${active && !isGateway && !isError ? 'text-cyan-400' : ''} 
       ${active && isGateway && !isError ? 'text-emerald-400' : ''} 
       ${isError ? 'text-rose-500' : ''}
@@ -500,7 +510,7 @@ const Node = ({ icon, title, active, isGateway = false, isError = false }: { ico
     `}>
       {icon}
     </div>
-    <span className={`text-xs font-semibold text-center leading-tight px-2 
+    <span className={`text-[11px] sm:text-xs font-semibold text-center leading-tight px-2 
       ${active || isError ? 'text-white' : 'text-zinc-400'}
     `}>
       {title}
