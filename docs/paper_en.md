@@ -96,9 +96,9 @@ The client undergoes an authentication procedure to sequentially receive a JWT a
 
 ### 2. HTTP Request Context Normalization and Streaming Digest
 
-To prevent man-in-the-middle attackers from tampering with the request path or payload, the gateway and client combine the key fields of an HTTP request into a single byte sequence for normalization. The normalization payload ($SigningPayload$) is defined as follows:
+To prevent man-in-the-middle attackers from tampering with the request path or payload, the gateway and client combine the key fields of an HTTP request into a single byte sequence for normalization. In particular, to satisfy Financial-grade API (FAPI) security requirements, the binding scope is extended beyond the HTTP method and path to include query string parameters. The normalization payload ($SigningPayload$) is defined as follows:
 
-$$SigningPayload = Method \parallel Path \parallel \text{SHA-256}(Body) \parallel Nonce \parallel Timestamp$$
+$$SigningPayload = Method \parallel Path \parallel Query \parallel \text{SHA-256}(Body) \parallel Nonce \parallel Timestamp$$
 
 To prevent memory overload on the gateway when processing large request bodies, a streaming digest pipeline is applied. This mechanism assumes an environment that supports HTTP chunked encoding or stream I/O at the proxy layer. Rather than loading the entire payload into a single memory buffer, the gateway immediately updates the hash function with incoming network byte stream chunks. This fixes the additional memory allocation at the signature verification layer to 32 bytes, maintaining $O(1)$ space complexity.
 
