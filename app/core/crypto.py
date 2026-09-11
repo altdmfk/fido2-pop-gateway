@@ -8,17 +8,15 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
 def generate_canonical_payload(
     method: str,
     path: str,
-    *args,
+    *,
     query: str = "",
     body: bytes = b"",
+    body_hash: str = None,
     nonce: str = "",
     timestamp: int = 0
 ) -> bytes:
-    if len(args) == 3:
-        body, nonce, timestamp = args
-    elif len(args) == 4:
-        query, body, nonce, timestamp = args
-    body_hash = hashlib.sha256(body).hexdigest()
+    if body_hash is None:
+        body_hash = hashlib.sha256(body).hexdigest()
     canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
     return canonical_str.encode("utf-8")
 

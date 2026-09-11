@@ -21,20 +21,12 @@ class RSAPoPClientSimulator:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, *args, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
-        if len(args) == 3:
-            body, nonce, timestamp = args
-        elif len(args) == 4:
-            query, body, nonce, timestamp = args
+    def generate_canonical_payload(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
         canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, *args, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
-        if len(args) == 2:
-            body, nonce = args
-        elif len(args) == 3:
-            query, body, nonce = args
+    def sign_request(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
         timestamp = int(time.time())
         payload = self.generate_canonical_payload(method, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
@@ -46,10 +38,12 @@ class RSAPoPClientSimulator:
         
         signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip("=")
         
+        body_hash = hashlib.sha256(body).hexdigest()
         headers = {
             "X-FIDO2-Credential-ID": self.credential_id,
             "X-FIDO2-Signature": signature_b64,
             "X-FIDO2-Nonce": nonce,
-            "X-FIDO2-Timestamp": str(timestamp)
+            "X-FIDO2-Timestamp": str(timestamp),
+            "X-Body-Digest": f"sha256={body_hash}"
         }
         return headers, payload

@@ -26,14 +26,14 @@ class LoadTestSigner:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, query: str, body: bytes, nonce: str, timestamp: int) -> bytes:
+    def generate_canonical_payload(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
         canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, query: str, body: bytes, nonce: str) -> Dict[str, str]:
+    def sign_request(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Dict[str, str]:
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, path, query, body, nonce, timestamp)
+        payload = self.generate_canonical_payload(method, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
         signature = self.private_key.sign(
             payload,
@@ -42,26 +42,27 @@ class LoadTestSigner:
         
         signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip("=")
         
+        body_hash = hashlib.sha256(body).hexdigest()
+        
         return {
             "X-FIDO2-Credential-ID": self.credential_id,
             "X-FIDO2-Signature": signature_b64,
             "X-FIDO2-Nonce": nonce,
-            "X-FIDO2-Timestamp": str(timestamp)
+            "X-FIDO2-Timestamp": str(timestamp),
+            "X-Body-Digest": f"sha256={body_hash}"
         }
 
 class FIDO2User(HttpUser):
     # Wait between 0.1 to 0.5 seconds between tasks
     wait_time = between(0.1, 0.5)
 
+    token = None
+
     def on_start(self):
         """
         Executed when a simulated user starts.
         We need to log in, get a JWT token, and register our FIDO2 credential.
         """
-        self.signer = LoadTestSigner()
-    token = None
-
-    def on_start(self):
         self.signer = LoadTestSigner()
         
         if not FIDO2User.token:
@@ -108,7 +109,7 @@ class FIDO2User(HttpUser):
         body = b""
         
         # 3. Generate FIDO2 PoP headers
-        pop_headers = self.signer.sign_request(method, path, query, body, nonce)
+        pop_headers = self.signer.sign_request(method, path, query=query, body=body, nonce=nonce)
         
         # 4. Combine headers
         headers = {

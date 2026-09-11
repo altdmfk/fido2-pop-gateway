@@ -46,7 +46,7 @@ def test_success_flow(setup_client, mock_upstream):
     path = "/api/v1/resource"
     body = b""
     
-    pop_headers, _ = simulator.sign_request(method, path, body, nonce)
+    pop_headers, _ = simulator.sign_request(method, path, body=body, nonce=nonce)
     headers = {"Authorization": f"Bearer {jwt_token}"}
     headers.update(pop_headers)
     
@@ -69,7 +69,7 @@ def test_replay_attack(setup_client, mock_upstream):
     path = "/api/v1/resource"
     body = b""
     
-    pop_headers, _ = simulator.sign_request(method, path, body, nonce)
+    pop_headers, _ = simulator.sign_request(method, path, body=body, nonce=nonce)
     headers = {"Authorization": f"Bearer {jwt_token}"}
     headers.update(pop_headers)
     
@@ -89,7 +89,7 @@ def test_payload_tampering(setup_client, mock_upstream):
     path = "/api/v1/resource"
     body = b""
     
-    pop_headers, _ = simulator.sign_request(method, path, body, nonce)
+    pop_headers, _ = simulator.sign_request(method, path, body=body, nonce=nonce)
     headers = {"Authorization": f"Bearer {jwt_token}"}
     headers.update(pop_headers)
     
@@ -99,3 +99,40 @@ def test_payload_tampering(setup_client, mock_upstream):
     
     assert response.status_code == 403
     assert "Invalid FIDO2 PoP signature" in response.text
+
+def test_missing_body_digest_header(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+    
+    method = "POST"
+    path = "/api/v1/resource"
+    body = b'{"data": "test"}'
+    
+    pop_headers, _ = simulator.sign_request(method, path, body=body, nonce=nonce)
+    headers = {"Authorization": f"Bearer {jwt_token}"}
+    headers.update(pop_headers)
+    
+    # Remove X-Body-Digest header intentionally
+    if "X-Body-Digest" in headers:
+        del headers["X-Body-Digest"]
+        
+    response = client.post(path, headers=headers, content=body)
+    assert response.status_code == 400
+    assert "Missing or invalid X-Body-Digest header" in response.text
+
+def test_invalid_body_digest_header(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+    
+    method = "POST"
+    path = "/api/v1/resource"
+    body = b'{"data": "test"}'
+    
+    pop_headers, _ = simulator.sign_request(method, path, body=body, nonce=nonce)
+    headers = {"Authorization": f"Bearer {jwt_token}"}
+    headers.update(pop_headers)
+    
+    # Intentionally provide a tampered digest
+    headers["X-Body-Digest"] = "sha256=abcdef1234567890"
+    
+    response = client.post(path, headers=headers, content=body)
+    assert response.status_code == 400
+    assert "Body digest mismatch" in response.text

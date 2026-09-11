@@ -18,8 +18,11 @@ def get_auth_token():
     resp = httpx.post(f"{BASE_URL}/auth/token", data={"username": "testuser", "password": "secret"})
     return resp.json()["access_token"]
 
+import random
+
 def get_nonce():
-    resp = httpx.get(f"{BASE_URL}/auth/nonce")
+    fake_ip = f"192.168.{random.randint(1,255)}.{random.randint(1,255)}"
+    resp = httpx.get(f"{BASE_URL}/auth/nonce", headers={"X-Forwarded-For": fake_ip})
     return resp.json()["nonce"]
 
 def register_key(simulator, token):
@@ -39,6 +42,9 @@ def calc_stats(latencies):
 def get_payload_size(headers):
     # Sum of bytes for signature and other PoP headers
     return sum(len(k.encode()) + len(v.encode()) for k, v in headers.items() if k.startswith("X-FIDO2-"))
+
+def get_body_digest_size(headers):
+    return sum(len(k.encode()) + len(v.encode()) for k, v in headers.items() if k == "X-Body-Digest")
 
 def benchmark():
     try:
@@ -70,7 +76,7 @@ def benchmark():
     sample_headers_b = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = rsa_simulator.sign_request("GET", "/api/v1/resource", b"", nonce)
+        headers, _ = rsa_simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_b: sample_headers_b = headers
         headers["Authorization"] = f"Bearer {token}"
         
@@ -87,7 +93,7 @@ def benchmark():
     sample_headers_c = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = ec_simulator.sign_request("GET", "/api/v1/resource", b"", nonce)
+        headers, _ = ec_simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_c: sample_headers_c = headers
         headers["Authorization"] = f"Bearer {token}"
         
@@ -102,18 +108,21 @@ def benchmark():
 
     size_b = get_payload_size(sample_headers_b)
     size_c = get_payload_size(sample_headers_c)
+    
+    digest_size_b = get_body_digest_size(sample_headers_b)
+    digest_size_c = get_body_digest_size(sample_headers_c)
 
     overhead_b_vs_a = ((mean_b - mean_a) / mean_a) * 100 if mean_a > 0 else 0
     overhead_c_vs_a = ((mean_c - mean_a) / mean_a) * 100 if mean_a > 0 else 0
 
     # --- CLI ASCII Table ---
-    print("\n" + "="*85)
-    print(f"{'Mode':<30} | {'Mean (ms)':<10} | {'P95 (ms)':<10} | {'Payload (B)':<11} | {'Overhead (%)':<12}")
-    print("-" * 85)
-    print(f"{'Mode A (Bearer JWT)':<30} | {mean_a:<10.2f} | {p95_a:<10.2f} | {size_a:<11} | {'Baseline':<12}")
-    print(f"{'Mode B (RSA-2048 PoP)':<30} | {mean_b:<10.2f} | {p95_b:<10.2f} | {size_b:<11} | {overhead_b_vs_a:+.2f}%")
-    print(f"{'Mode C (ECDSA P-256 PoP)':<30} | {mean_c:<10.2f} | {p95_c:<10.2f} | {size_c:<11} | {overhead_c_vs_a:+.2f}%")
-    print("=" * 85)
+    print("\n" + "="*105)
+    print(f"{'Mode':<30} | {'Mean (ms)':<10} | {'P95 (ms)':<10} | {'Payload (B)':<11} | {'Digest Header (B)':<17} | {'Overhead (%)':<12}")
+    print("-" * 105)
+    print(f"{'Mode A (Bearer JWT)':<30} | {mean_a:<10.2f} | {p95_a:<10.2f} | {size_a:<11} | {0:<17} | {'Baseline':<12}")
+    print(f"{'Mode B (RSA-2048 PoP)':<30} | {mean_b:<10.2f} | {p95_b:<10.2f} | {size_b:<11} | {digest_size_b:<17} | {overhead_b_vs_a:+.2f}%")
+    print(f"{'Mode C (ECDSA P-256 PoP)':<30} | {mean_c:<10.2f} | {p95_c:<10.2f} | {size_c:<11} | {digest_size_c:<17} | {overhead_c_vs_a:+.2f}%")
+    print("=" * 105)
 
     # --- JSON Results ---
     results = {

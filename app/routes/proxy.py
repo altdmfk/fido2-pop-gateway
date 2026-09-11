@@ -20,11 +20,28 @@ async def proxy(request: Request, path: str):
     if hasattr(request.state, "role") and request.state.role:
         headers["X-Authenticated-Role"] = request.state.role
 
+    from anyio import to_thread
+    
+    if hasattr(request.state, "spooled_body") and request.state.spooled_body:
+        async def file_stream():
+            f = request.state.spooled_body
+            try:
+                while True:
+                    chunk = await to_thread.run_sync(f.read, 65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                await to_thread.run_sync(f.close)
+        content = file_stream()
+    else:
+        content = request.stream()
+
     req = client.build_request(
         method=request.method,
         url=url,
         headers=headers,
-        content=request.stream()
+        content=content
     )
 
     try:
