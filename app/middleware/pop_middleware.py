@@ -55,17 +55,49 @@ async def pop_middleware(request: Request, call_next):
     if not nonce_store.consume_nonce(nonce):
         return JSONResponse(status_code=401, content={"detail": "Invalid or replayed nonce"})
 
-    # Step D-pre (Body Digest Validation)
-    import hashlib
+    # Step D-pre (JWT Binding Check)
+    bound_cred_id = payload.get("cnf", {}).get("kid")
+    if bound_cred_id and bound_cred_id != cred_id:
+        return JSONResponse(status_code=401, content={"detail": "JWT is not bound to this key"})
+
+    # Step D (Extract Expected Body Digest & Cryptographic Verification)
     expected_digest = request.headers.get("X-Body-Digest")
     if not expected_digest or not expected_digest.startswith("sha256="):
         return JSONResponse(status_code=400, content={"detail": "Missing or invalid X-Body-Digest header"})
     expected_digest_val = expected_digest.split("=")[1]
 
+    cred = get_credential(user_id, cred_id)
+    if not cred:
+        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature (credential not found)"})
+
+    try:
+        signature = base64.urlsafe_b64decode(signature_b64 + "===")
+    except Exception:
+        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature (decode failed)"})
+
+    canonical_payload = generate_canonical_payload(
+        method=request.method,
+        host=request.headers.get("Host", ""),
+        path=request.url.path,
+        query=request.url.query,
+        body_hash=expected_digest_val,
+        nonce=nonce,
+        timestamp=timestamp
+    )
+
+    is_valid = await to_thread.run_sync(
+        verify_pop_signature, cred.public_key_pem.encode("utf-8"), signature, canonical_payload
+    )
+
+    if not is_valid:
+        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature"})
+
+    # Step E (Stream Body and Validate Actual Digest)
+    # This happens AFTER signature validation to prevent resource exhaustion attacks
+    import hashlib
     import tempfile
     
     body_hasher = hashlib.sha256()
-    # 1MB in memory, then spills to disk to maintain O(1) memory
     spooled_body = tempfile.SpooledTemporaryFile(max_size=1024 * 1024)
     
     async for chunk in request.stream():
@@ -81,35 +113,6 @@ async def pop_middleware(request: Request, call_next):
         spooled_body.close()
         return JSONResponse(status_code=400, content={"detail": "Body digest mismatch"})
 
-    # Step D (Cryptographic Verification)
-    cred = get_credential(user_id, cred_id)
-    if not cred:
-        spooled_body.close()
-        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature"})
-
-    try:
-        signature = base64.urlsafe_b64decode(signature_b64 + "===")
-    except Exception:
-        spooled_body.close()
-        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature"})
-
-    canonical_payload = generate_canonical_payload(
-        method=request.method,
-        path=request.url.path,
-        query=request.url.query,
-        body_hash=body_hash,
-        nonce=nonce,
-        timestamp=timestamp
-    )
-
-    is_valid = await to_thread.run_sync(
-        verify_pop_signature, cred.public_key_pem.encode("utf-8"), signature, canonical_payload
-    )
-
-    if not is_valid:
-        spooled_body.close()
-        return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature"})
-
-    # Step E (Forwarding)
+    # Step F (Forwarding)
     response = await call_next(request)
     return response

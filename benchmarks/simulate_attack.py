@@ -43,7 +43,7 @@ def run():
 
     # 1. Baseline
     nonce1 = get_nonce()
-    headers1, _ = simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce1)
+    headers1, _ = simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce1)
     headers1["Authorization"] = f"Bearer {token}"
     
     start = time.perf_counter()
@@ -69,7 +69,7 @@ def run():
     tampered_body = b'{"malicious": "payload"}'
     
     nonce4 = get_nonce()
-    headers_valid, _ = simulator.sign_request("POST", "/api/v1/resource", query="", body=valid_body, nonce=nonce4)
+    headers_valid, _ = simulator.sign_request("POST", "127.0.0.1:8000", "/api/v1/resource", query="", body=valid_body, nonce=nonce4)
     headers_valid["Authorization"] = f"Bearer {token}"
     
     start = time.perf_counter()
@@ -79,7 +79,7 @@ def run():
 
     # 4b. 고도화된 Body 변조 (다이제스트 조작)
     nonce4b = get_nonce()
-    headers_advanced_valid, _ = simulator.sign_request("POST", "/api/v1/resource", query="", body=valid_body, nonce=nonce4b)
+    headers_advanced_valid, _ = simulator.sign_request("POST", "127.0.0.1:8000", "/api/v1/resource", query="", body=valid_body, nonce=nonce4b)
     headers_advanced = headers_advanced_valid.copy()
     headers_advanced["Authorization"] = f"Bearer {token}"
     headers_advanced["X-Body-Digest"] = f"sha256={hashlib.sha256(tampered_body).hexdigest()}"
@@ -91,7 +91,7 @@ def run():
 
     # 5. Path 변조
     nonce5 = get_nonce()
-    headers_path, _ = simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce5)
+    headers_path, _ = simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce5)
     headers_path["Authorization"] = f"Bearer {token}"
     
     start = time.perf_counter()

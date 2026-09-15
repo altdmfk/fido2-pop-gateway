@@ -76,7 +76,7 @@ def benchmark():
     sample_headers_b = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = rsa_simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce)
+        headers, _ = rsa_simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_b: sample_headers_b = headers
         headers["Authorization"] = f"Bearer {token}"
         
@@ -93,7 +93,7 @@ def benchmark():
     sample_headers_c = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = ec_simulator.sign_request("GET", "/api/v1/resource", body=b"", nonce=nonce)
+        headers, _ = ec_simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_c: sample_headers_c = headers
         headers["Authorization"] = f"Bearer {token}"
         

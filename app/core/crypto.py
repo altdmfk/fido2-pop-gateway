@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
 
 def generate_canonical_payload(
     method: str,
+    host: str,
     path: str,
     *,
     query: str = "",
@@ -17,7 +18,8 @@ def generate_canonical_payload(
 ) -> bytes:
     if body_hash is None:
         body_hash = hashlib.sha256(body).hexdigest()
-    canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
+    # Using strict newline delimiters and including host to prevent collision and cross-host attacks
+    canonical_str = f"{method.upper()}\n{host}\n{path}\n{query}\n{body_hash}\n{nonce}\n{timestamp}"
     return canonical_str.encode("utf-8")
 
 def verify_pop_signature(public_key_pem: bytes, signature: bytes, canonical_payload: bytes) -> bool:

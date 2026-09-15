@@ -17,12 +17,19 @@ MOCK_USERS = {
 }
 
 @router.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user = MOCK_USERS.get(form_data.username)
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token = create_access_token(data={"sub": user["username"], "role": user.get("role")})
+    payload_data = {"sub": user["username"], "role": user.get("role")}
+    
+    # Optional PoP binding
+    bound_cred_id = request.headers.get("X-FIDO2-Credential-ID")
+    if bound_cred_id:
+        payload_data["cnf"] = {"kid": bound_cred_id}
+
+    access_token = create_access_token(data=payload_data)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/register-key", response_model=RegisterKeyResponse)

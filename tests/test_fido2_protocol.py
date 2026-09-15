@@ -6,20 +6,21 @@ from client_simulator.fido2_signer import FIDO2ClientSimulator
 
 def test_canonical_payload_generation():
     method = "POST"
+    host = "testserver"
     path = "/api/v1/resource"
     body = b'{"data": "test"}'
     nonce = "test-nonce-123"
     timestamp = 1600000000
 
-    payload = generate_canonical_payload(method, path, body=body, nonce=nonce, timestamp=timestamp)
+    payload = generate_canonical_payload(method, host, path, body=body, nonce=nonce, timestamp=timestamp)
     import hashlib
     expected_hash = hashlib.sha256(b'{"data": "test"}').hexdigest()
-    expected = f"POST|/api/v1/resource||{expected_hash}|test-nonce-123|1600000000".encode("utf-8")
+    expected = f"POST\ntestserver\n/api/v1/resource\n\n{expected_hash}\ntest-nonce-123\n1600000000".encode("utf-8")
     assert payload == expected
 
     # Test with query string
-    payload_with_query = generate_canonical_payload(method, path, query="filter=active", body=body, nonce=nonce, timestamp=timestamp)
-    expected_with_query = f"POST|/api/v1/resource|filter=active|{expected_hash}|test-nonce-123|1600000000".encode("utf-8")
+    payload_with_query = generate_canonical_payload(method, host, path, query="filter=active", body=body, nonce=nonce, timestamp=timestamp)
+    expected_with_query = f"POST\ntestserver\n/api/v1/resource\nfilter=active\n{expected_hash}\ntest-nonce-123\n1600000000".encode("utf-8")
     assert payload_with_query == expected_with_query
 
 def test_client_simulator_signing_and_verification():
@@ -27,11 +28,12 @@ def test_client_simulator_signing_and_verification():
     pub_key_pem = client.get_public_key_pem()
 
     method = "GET"
+    host = "testserver"
     path = "/api/v1/data"
     body = b""
     nonce = "server-nonce-xyz"
 
-    headers, payload = client.sign_request(method, path, body=body, nonce=nonce)
+    headers, payload = client.sign_request(method, host, path, body=body, nonce=nonce)
     
     assert "X-FIDO2-Credential-ID" in headers
     assert "X-FIDO2-Signature" in headers
@@ -49,11 +51,12 @@ def test_verification_fails_on_tampered_payload():
     pub_key_pem = client.get_public_key_pem()
 
     method = "GET"
+    host = "testserver"
     path = "/api/v1/data"
     body = b""
     nonce = "server-nonce-xyz"
 
-    headers, payload = client.sign_request(method, path, body=body, nonce=nonce)
+    headers, payload = client.sign_request(method, host, path, body=body, nonce=nonce)
     signature_bytes = base64.urlsafe_b64decode(headers["X-FIDO2-Signature"] + "===")
     
     # Tamper payload

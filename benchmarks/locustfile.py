@@ -26,14 +26,14 @@ class LoadTestSigner:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
+    def generate_canonical_payload(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
-        canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
+        canonical_str = f"{method.upper()}\n{host}\n{path}\n{query}\n{body_hash}\n{nonce}\n{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Dict[str, str]:
+    def sign_request(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Dict[str, str]:
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
+        payload = self.generate_canonical_payload(method, host, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
         signature = self.private_key.sign(
             payload,
@@ -45,6 +45,7 @@ class LoadTestSigner:
         body_hash = hashlib.sha256(body).hexdigest()
         
         return {
+            "Host": host,
             "X-FIDO2-Credential-ID": self.credential_id,
             "X-FIDO2-Signature": signature_b64,
             "X-FIDO2-Nonce": nonce,
@@ -109,7 +110,7 @@ class FIDO2User(HttpUser):
         body = b""
         
         # 3. Generate FIDO2 PoP headers
-        pop_headers = self.signer.sign_request(method, path, query=query, body=body, nonce=nonce)
+        pop_headers = self.signer.sign_request(method, "127.0.0.1:8000", path, query=query, body=body, nonce=nonce)
         
         # 4. Combine headers
         headers = {

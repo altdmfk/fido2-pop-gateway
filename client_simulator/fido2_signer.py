@@ -18,14 +18,14 @@ class FIDO2ClientSimulator:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
+    def generate_canonical_payload(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
-        canonical_str = f"{method.upper()}|{path}|{query}|{body_hash}|{nonce}|{timestamp}"
+        canonical_str = f"{method.upper()}\n{host}\n{path}\n{query}\n{body_hash}\n{nonce}\n{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
+    def sign_request(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
+        payload = self.generate_canonical_payload(method, host, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
         signature = self.private_key.sign(
             payload,
@@ -36,6 +36,7 @@ class FIDO2ClientSimulator:
         
         body_hash = hashlib.sha256(body).hexdigest()
         headers = {
+            "Host": host,
             "X-FIDO2-Credential-ID": self.credential_id,
             "X-FIDO2-Signature": signature_b64,
             "X-FIDO2-Nonce": nonce,
