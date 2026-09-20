@@ -22,9 +22,19 @@ def generate_canonical_payload(
     canonical_str = f"{method.upper()}\n{host}\n{path}\n{query}\n{body_hash}\n{nonce}\n{timestamp}"
     return canonical_str.encode("utf-8")
 
+import logging
+from cryptography.exceptions import UnsupportedAlgorithm
+
+logger = logging.getLogger(__name__)
+
 def verify_pop_signature(public_key_pem: bytes, signature: bytes, canonical_payload: bytes) -> bool:
     try:
-        public_key = load_pem_public_key(public_key_pem)
+        try:
+            public_key = load_pem_public_key(public_key_pem)
+        except (ValueError, TypeError, UnsupportedAlgorithm) as e:
+            logger.error(f"Failed to load public key: {e}")
+            return False
+
         if isinstance(public_key, ec.EllipticCurvePublicKey):
             public_key.verify(
                 signature,
@@ -40,6 +50,11 @@ def verify_pop_signature(public_key_pem: bytes, signature: bytes, canonical_payl
                 hashes.SHA256()
             )
             return True
+        else:
+            logger.warning(f"Unsupported key type: {type(public_key).__name__}")
+            return False
+    except InvalidSignature:
         return False
-    except (InvalidSignature, ValueError):
+    except Exception as e:
+        logger.error(f"Unexpected error during signature verification: {e}")
         return False

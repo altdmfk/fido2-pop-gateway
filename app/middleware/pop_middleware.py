@@ -52,8 +52,11 @@ async def pop_middleware(request: Request, call_next):
     if abs(current_time - timestamp) > 60:
         return JSONResponse(status_code=401, content={"detail": "Timestamp expired"})
 
-    if not nonce_store.consume_nonce(nonce):
+    nonce_status = nonce_store.consume_nonce(nonce)
+    if nonce_status == "invalid":
         return JSONResponse(status_code=401, content={"detail": "Invalid or replayed nonce"})
+    elif nonce_status == "expired":
+        return JSONResponse(status_code=401, content={"detail": "Nonce has expired"})
 
     # Step D-pre (JWT Binding Check)
     bound_cred_id = payload.get("cnf", {}).get("kid")
@@ -70,9 +73,11 @@ async def pop_middleware(request: Request, call_next):
     if not cred:
         return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature (credential not found)"})
 
+    import binascii
     try:
-        signature = base64.urlsafe_b64decode(signature_b64 + "===")
-    except Exception:
+        padding_needed = (4 - len(signature_b64) % 4) % 4
+        signature = base64.urlsafe_b64decode(signature_b64 + "=" * padding_needed)
+    except (binascii.Error, ValueError):
         return JSONResponse(status_code=403, content={"detail": "Invalid FIDO2 PoP signature (decode failed)"})
 
     canonical_payload = generate_canonical_payload(
@@ -100,19 +105,22 @@ async def pop_middleware(request: Request, call_next):
     body_hasher = hashlib.sha256()
     spooled_body = tempfile.SpooledTemporaryFile(max_size=1024 * 1024)
     
-    async for chunk in request.stream():
-        body_hasher.update(chunk)
-        await to_thread.run_sync(spooled_body.write, chunk)
+    try:
+        async for chunk in request.stream():
+            body_hasher.update(chunk)
+            spooled_body.write(chunk)
+            
+        spooled_body.seek(0)
         
-    await to_thread.run_sync(spooled_body.seek, 0)
-    request.state.spooled_body = spooled_body
-    
-    body_hash = body_hasher.hexdigest()
+        body_hash = body_hasher.hexdigest()
 
-    if body_hash != expected_digest_val:
+        if body_hash != expected_digest_val:
+            spooled_body.close()
+            return JSONResponse(status_code=400, content={"detail": "Body digest mismatch"})
+
+        request.state.spooled_body = spooled_body
+        response = await call_next(request)
+        return response
+    except Exception:
         spooled_body.close()
-        return JSONResponse(status_code=400, content={"detail": "Body digest mismatch"})
-
-    # Step F (Forwarding)
-    response = await call_next(request)
-    return response
+        raise

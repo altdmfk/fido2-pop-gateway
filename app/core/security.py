@@ -23,4 +23,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+    import json
+    try:
+        return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
+        raise jwt.PyJWTError(f"Token parsing failed: {str(e)}")

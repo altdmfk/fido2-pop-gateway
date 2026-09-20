@@ -57,8 +57,6 @@ class FIDO2User(HttpUser):
     # Wait between 0.1 to 0.5 seconds between tasks
     wait_time = between(0.1, 0.5)
 
-    token = None
-
     def on_start(self):
         """
         Executed when a simulated user starts.
@@ -66,14 +64,16 @@ class FIDO2User(HttpUser):
         """
         self.signer = LoadTestSigner()
         
-        if not FIDO2User.token:
-            login_resp = self.client.post("/auth/token", data={"username": "testuser", "password": "secret"})
-            if login_resp.status_code == 200:
-                FIDO2User.token = login_resp.json().get("access_token")
-            else:
-                print(f"Login failed: {login_resp.text}")
+        # Generate a unique user per Locust worker to avoid credential limits
+        import uuid
+        self.username = f"locust_user_{uuid.uuid4().hex[:8]}"
         
-        self.token = FIDO2User.token
+        login_resp = self.client.post("/auth/token", data={"username": self.username, "password": "secret"})
+        if login_resp.status_code == 200:
+            self.token = login_resp.json().get("access_token")
+        else:
+            print(f"Login failed: {login_resp.text}")
+            self.token = None
         
         reg_resp = self.client.post(
             "/auth/register-key",

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 import httpx
+from starlette.background import BackgroundTask
 from app.core.config import settings
 
 router = APIRouter()
-client = httpx.AsyncClient(base_url=settings.upstream_url)
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy(request: Request, path: str):
@@ -37,6 +37,7 @@ async def proxy(request: Request, path: str):
     else:
         content = request.stream()
 
+    client = request.app.state.http_client
     req = client.build_request(
         method=request.method,
         url=url,
@@ -49,7 +50,10 @@ async def proxy(request: Request, path: str):
         return StreamingResponse(
             response.aiter_raw(),
             status_code=response.status_code,
-            headers={k: v for k, v in response.headers.items() if k.lower() not in ("content-encoding", "content-length", "transfer-encoding", "connection")}
+            headers={k: v for k, v in response.headers.items() if k.lower() not in ("content-encoding", "content-length", "transfer-encoding", "connection")},
+            background=BackgroundTask(response.aclose)
         )
+    except httpx.TimeoutException as exc:
+        raise HTTPException(status_code=504, detail=f"Upstream timeout: {str(exc)}")
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Error forwarding request: {str(exc)}")

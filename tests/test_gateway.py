@@ -3,7 +3,10 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.security import create_access_token
 from datetime import timedelta
+import httpx
 
+# Initialize app state for testing without lifespan
+app.state.http_client = httpx.AsyncClient()
 client = TestClient(app)
 
 def test_missing_token():

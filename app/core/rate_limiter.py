@@ -23,5 +23,18 @@ class NonceRateLimiter:
                 return True
             return False
 
+    def cleanup(self):
+        now = time.time()
+        with self.lock:
+            stale_ips = []
+            for ip, history in self.records.items():
+                while history and now - history[0] > self.window:
+                    history.popleft()
+                if not history:
+                    stale_ips.append(ip)
+            
+            for ip in stale_ips:
+                del self.records[ip]
+
 # Global instance for the gateway
 nonce_rate_limiter = NonceRateLimiter(limit=10, window=1.0)

@@ -6,6 +6,8 @@ import httpx
 from app.main import app
 from client_simulator.fido2_signer import FIDO2ClientSimulator
 
+# Initialize app state for testing without lifespan
+app.state.http_client = httpx.AsyncClient()
 client = TestClient(app)
 
 @pytest.fixture

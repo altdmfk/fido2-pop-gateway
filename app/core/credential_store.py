@@ -8,10 +8,19 @@ class CredentialRecord(BaseModel):
 # Mock storage linking username to a list of credentials
 MOCK_CREDENTIAL_STORE: Dict[str, List[CredentialRecord]] = {}
 
+MAX_CREDENTIALS_PER_USER = 20
+
 def add_credential(username: str, credential_id: str, public_key_pem: str) -> None:
-    if username not in MOCK_CREDENTIAL_STORE:
-        MOCK_CREDENTIAL_STORE[username] = []
-    MOCK_CREDENTIAL_STORE[username].append(CredentialRecord(
+    creds = MOCK_CREDENTIAL_STORE.setdefault(username, [])
+    
+    for c in creds:
+        if c.credential_id == credential_id:
+            raise ValueError("Credential ID already registered")
+            
+    if len(creds) >= MAX_CREDENTIALS_PER_USER:
+        raise ValueError("Maximum credentials per user exceeded")
+        
+    creds.append(CredentialRecord(
         credential_id=credential_id,
         public_key_pem=public_key_pem
     ))

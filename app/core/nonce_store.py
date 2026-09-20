@@ -15,16 +15,18 @@ class NonceStore:
             self._store[nonce] = time.time()
         return nonce
 
-    def consume_nonce(self, nonce: str) -> bool:
+    def consume_nonce(self, nonce: str) -> str:
         with self._lock:
-            if nonce not in self._store:
-                return False
+            issued_time = self._store.get(nonce)
+            if issued_time is None:
+                return "invalid"
             
-            issued_time = self._store.pop(nonce)
             if time.time() - issued_time > self.ttl:
-                return False
+                self._store.pop(nonce, None)
+                return "expired"
                 
-            return True
+            self._store.pop(nonce)
+            return "valid"
 
     def cleanup(self):
         with self._lock:
