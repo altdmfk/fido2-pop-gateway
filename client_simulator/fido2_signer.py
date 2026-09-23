@@ -27,12 +27,17 @@ class FIDO2ClientSimulator:
         timestamp = int(time.time())
         payload = self.generate_canonical_payload(method, host, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
         
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+        
         signature = self.private_key.sign(
             payload,
             ec.ECDSA(hashes.SHA256())
         )
         
-        signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip("=")
+        r, s = decode_dss_signature(signature)
+        raw_signature = r.to_bytes(32, byteorder="big") + s.to_bytes(32, byteorder="big")
+        
+        signature_b64 = base64.urlsafe_b64encode(raw_signature).decode().rstrip("=")
         
         body_hash = hashlib.sha256(body).hexdigest()
         headers = {

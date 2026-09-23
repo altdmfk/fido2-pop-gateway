@@ -13,11 +13,16 @@ from app.core.config import settings
 async def lifespan(app: FastAPI):
     # GC task for nonce store and rate limiter
     async def gc_task():
+        import logging
+        logger = logging.getLogger("gc_task")
         from app.core.rate_limiter import nonce_rate_limiter
         while True:
             await asyncio.sleep(30)
-            nonce_store.cleanup()
-            nonce_rate_limiter.cleanup()
+            try:
+                nonce_store.cleanup()
+                nonce_rate_limiter.cleanup()
+            except Exception as e:
+                logger.error(f"Error during GC cleanup: {e}")
     
     task = asyncio.create_task(gc_task())
     

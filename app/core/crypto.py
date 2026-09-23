@@ -36,6 +36,12 @@ def verify_pop_signature(public_key_pem: bytes, signature: bytes, canonical_payl
             return False
 
         if isinstance(public_key, ec.EllipticCurvePublicKey):
+            from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+            if len(signature) == 64:
+                r = int.from_bytes(signature[:32], byteorder="big")
+                s = int.from_bytes(signature[32:], byteorder="big")
+                signature = encode_dss_signature(r, s)
+                
             public_key.verify(
                 signature,
                 canonical_payload,
