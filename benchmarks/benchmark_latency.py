@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from client_simulator.fido2_signer import FIDO2ClientSimulator
 from client_simulator.rsa_signer import RSAPoPClientSimulator
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("GATEWAY_URL", "http://127.0.0.1:8001")
 ITERATIONS = 100
 
 def get_auth_token():
@@ -76,7 +76,7 @@ def benchmark():
     sample_headers_b = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = rsa_simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce)
+        headers, _ = rsa_simulator.sign_request("GET", "127.0.0.1:8001", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_b: sample_headers_b = headers
         headers["Authorization"] = f"Bearer {token}"
         
@@ -93,7 +93,7 @@ def benchmark():
     sample_headers_c = None
     for _ in range(ITERATIONS):
         nonce = get_nonce()
-        headers, _ = ec_simulator.sign_request("GET", "127.0.0.1:8000", "/api/v1/resource", body=b"", nonce=nonce)
+        headers, _ = ec_simulator.sign_request("GET", "127.0.0.1:8001", "/api/v1/resource", body=b"", nonce=nonce)
         if not sample_headers_c: sample_headers_c = headers
         headers["Authorization"] = f"Bearer {token}"
         

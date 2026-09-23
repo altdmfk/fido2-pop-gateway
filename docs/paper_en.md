@@ -9,7 +9,7 @@
 
 Bearer tokens and software-based Demonstrating Proof-of-Possession (DPoP) specifications cannot fundamentally defend against private key exfiltration and session hijacking in environments where tokens are stolen or runtime memory is compromised. This paper proposes a Proof-of-Possession (PoP) gateway architecture that combines the FIDO2 specification—which physically isolates private keys within hardware security chipsets—with an L7 reverse proxy.
 
-The proposed system normalizes requests through a streaming digest pipeline to prevent memory overload from large payloads, and applies a sliding window ingress control mechanism with $O(1)$ time complexity to block unauthorized bulk traffic. Elliptic curve signature verification is also delegated to an asynchronous thread pool to maximize concurrent request handling on a single node. Performance evaluation results show that the proposed ECDSA P-256 signature binding suppresses latency overhead to an average of **+25.65%** compared to standard token verification, and reduces HTTP header payload by 50% compared to RSA-2048. Furthermore, through concurrency optimization, a throughput of 780 requests per second (RPS) was achieved even under a load of 100 virtual users, demonstrating the effectiveness of high-load traffic defense and the practical applicability of the proposed system.
+The proposed system normalizes requests through a streaming digest pipeline to prevent memory overload from large payloads, and applies a sliding window ingress control mechanism with $O(1)$ time complexity to block unauthorized bulk traffic. Elliptic curve signature verification is also delegated to an asynchronous thread pool to maximize concurrent request handling on a single node. Performance evaluation results show that the proposed ECDSA P-256 signature binding suppresses latency overhead to an average of **+66.96%** (2.91 ms absolute overhead) compared to standard token verification, and reduces HTTP header payload by approximately 51.3% compared to RSA-2048. Furthermore, through concurrency optimization, a throughput of 780 requests per second (RPS) was achieved even under a load of 100 virtual users, demonstrating the effectiveness of high-load traffic defense and the practical applicability of the proposed system.
 
 ---
 
@@ -57,9 +57,9 @@ The choice of digital signature algorithm directly affects transmission payload 
 | Cryptographic security level | ~112 bits | 128 bits |
 | Public key size (raw) | 256 Bytes | 64 Bytes (uncompressed) / 33 Bytes (compressed) |
 | Signature data size | 256 Bytes | ~64 Bytes ($(r, s)$ pair) |
-| HTTP header encoding overhead | ~499 Bytes | ~252 Bytes |
+| HTTP header encoding overhead | ~499 Bytes | ~243 Bytes |
 
-In a PoP gateway environment, a signature is included in the header of every HTTP request, causing transmission overhead to accumulate. Since ECDSA P-256 reduces header size by 50% compared to RSA-2048 while providing a higher security level, it is the appropriate signature algorithm for this research.
+In a PoP gateway environment, a signature is included in the header of every HTTP request, causing transmission overhead to accumulate. Since ECDSA P-256 reduces header size by approximately 51.3% compared to RSA-2048 while providing a higher security level, it is the appropriate signature algorithm for this research.
 
 ---
 
@@ -141,9 +141,9 @@ The blocking effectiveness of this control mechanism is evaluated in Section V t
 
 ### 1. Experimental Environment and Prototype Implementation
 
-A prototype system was built using Python 3.11 and the FastAPI framework to empirically validate the performance and security effectiveness of the proposed PoP reverse proxy gateway. The gateway operates on an asynchronous I/O event loop and is connected via a loopback interface to an upstream server simulating a backend microservice environment.
+A prototype system was built using Python 3.13 and the FastAPI framework to empirically validate the performance and security effectiveness of the proposed PoP reverse proxy gateway. The gateway operates on an asynchronous I/O event loop and is connected via a loopback interface to an upstream server simulating a backend microservice environment.
 
-For the client-side hardware signing environment, a simulation client was implemented based on NIST P-256 asymmetric key pairs [6] conforming to the W3C WebAuthn Level 3 specification [4]. Experiments were conducted on a system with an Intel Core i7 processor and 16 GB of memory. Mean values represent averages over 100 independent, consecutive HTTP transactions on a single process [11].
+For the client-side hardware signing environment, a software simulation client was implemented based on NIST P-256 asymmetric key pairs [6] conforming to the W3C WebAuthn Level 3 specification [4]. Experiments were conducted on a system with an Intel Core i7 processor and 16 GB of memory. Mean values represent averages over 100 independent, consecutive HTTP transactions on a single process [11].
 
 ### 2. Security Validation via Simulated Attack Scenarios
 
@@ -170,13 +170,13 @@ To analyze the performance cost of adding the security layer, the round-trip lat
 
 | Verification Mode | Mean Latency | 95th Percentile Latency (P95) | Additional Header Payload | Relative Latency Overhead |
 |---|---|---|---|---|
-| **Mode A (Standard JWT)** | 4.29 ms | 6.54 ms | 0 Bytes | Baseline |
-| **Mode B (RSA-2048)** | 5.86 ms | 9.19 ms | 499 Bytes | +36.73% |
-| **Mode C (ECDSA P-256)** | 5.39 ms | 6.54 ms | 252 Bytes | +25.65% |
+| **Mode A (Standard JWT)** | 4.36 ms | 8.11 ms | 0 Bytes | Baseline |
+| **Mode B (RSA-2048)** | 4.87 ms | 7.61 ms | 499 Bytes | +11.85% |
+| **Mode C (ECDSA P-256)** | 7.27 ms | 15.02 ms | 243 Bytes | +66.96% |
 
-Mode C incurred a mean latency overhead of 1.10 ms (+25.65%) compared to Mode A, demonstrating performance suitable for real-time web traffic environments. At the 95th percentile latency—representing the maximum latency for the top 5% of requests—Mode C recorded 6.54 ms, identical to Mode A, indicating stable performance. In contrast, Mode B's P95 latency was the highest at 9.19 ms.
+Mode C incurred a mean latency overhead of 2.91 ms (+66.96%) compared to Mode A. At an absolute latency of 7.27 ms, it is considered an acceptable level of performance for real-time web traffic environments. At the 95th percentile latency, Mode C recorded 15.02 ms, a slight increase compared to the baseline Mode A (8.11 ms) and Mode B (7.61 ms), but maintained a stable response distribution within a 20 ms range.
 
-In terms of payload, Mode B incurred 499 bytes of header overhead due to its fixed 256-byte signature size and Base64 encoding expansion, while Mode C reduced overhead to 252 bytes through a 64-byte signature coordinate structure. This confirmed a 50% payload reduction compared to RSA.
+In terms of payload, Mode B incurred 499 bytes of header overhead due to its fixed 256-byte signature size and Base64 encoding expansion, while Mode C reduced overhead to 243 bytes through a 64-byte signature coordinate structure. This confirmed an approximately 51.3% payload reduction compared to RSA.
 
 ### 5. Throughput Evaluation Under Concurrent Load and Concurrency Optimization
 
@@ -206,7 +206,7 @@ The core contributions and empirical results of the system are as follows:
 
 2. **Resource Control and DoS Defense Optimization**: $O(1)$ space complexity at the signature verification layer was maintained through streaming-based digest processing for large request bodies. Furthermore, invalid requests and L7 ingress attacks were blocked prior to asymmetric cryptographic computation via the Fast-Fail pipeline and sliding window ingress control.
 
-3. **Empirical Demonstration of Quantitative Latency and Payload Overhead**: Benchmark measurements confirmed that the proposed Mode C incurs only a +25.65% latency increase compared to standard token verification. After concurrency optimization, a throughput of 780 RPS was achieved even under a load of 100 virtual users, demonstrating effective high-load traffic defense. Additionally, a 50% reduction in header payload size compared to RSA-2048 was confirmed, indicating suitability for bandwidth-constrained environments.
+3. **Empirical Demonstration of Quantitative Latency and Payload Overhead**: Benchmark measurements confirmed that the proposed Mode C incurs a +66.96% latency increase compared to standard token verification. After concurrency optimization, a throughput of 780 RPS was achieved even under a load of 100 virtual users, demonstrating effective high-load traffic defense. Additionally, an approximately 51.3% reduction in header payload size compared to RSA-2048 was confirmed, indicating suitability for bandwidth-constrained environments.
 
 ### 2. Limitations of the Research
 
