@@ -151,16 +151,15 @@ const Dashboard = () => {
   const PIE_COLORS = ['#3b82f6', '#10b981'];
   
   return (
-    <div className="min-h-screen bg-zinc-950 text-slate-200 p-4 sm:p-6 lg:p-8 font-sans selection:bg-cyan-900 selection:text-cyan-100 relative">
+    <div className="h-screen overflow-hidden bg-zinc-950 text-slate-200 p-2 font-sans selection:bg-cyan-900 selection:text-cyan-100 relative flex flex-col">
       
       {/* 1. Dashboard Header */}
-      <header className="mb-8 border-b border-zinc-800 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="mb-2 border-b border-zinc-800 pb-2 flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Shield className="text-emerald-500" size={32} />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <Shield className="text-emerald-500" size={28} />
             FIDO2 PoP Gateway
           </h1>
-          <p className="text-zinc-400 mt-2 text-sm tracking-wide">Live Security & Performance Telemetry</p>
         </div>
         
         {/* Paper Button */}
@@ -176,13 +175,13 @@ const Dashboard = () => {
       </header>
 
       {/* Grid Layout Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-3 flex-1 min-h-0">
         
         {/* SECTION 1: Interactive Architecture Flow (Full Span) */}
-        <div className="lg:col-span-12 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 lg:p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-10">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <Cpu className="text-cyan-500" size={20}/>
+        <div className="lg:col-span-12 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-2 shadow-2xl relative overflow-hidden backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Cpu className="text-cyan-500" size={18}/>
               Authentication Architecture
             </h2>
             <div className="text-xs sm:text-sm text-zinc-400 bg-zinc-950 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-zinc-800">
@@ -190,8 +189,8 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <div className="w-full overflow-x-auto pb-4 pt-2 custom-scrollbar">
-            <div className="relative flex justify-between items-center py-10 px-6 sm:px-12 lg:px-16 w-full min-w-[640px] max-w-5xl mx-auto">
+          <div className="w-full overflow-x-auto pb-1 pt-1 custom-scrollbar">
+            <div className="relative flex justify-between items-center py-2 px-4 sm:px-8 lg:px-12 w-full min-w-[640px] max-w-5xl mx-auto">
               {/* Background Connection Line */}
               <div className="absolute top-1/2 left-16 right-16 h-[2px] bg-zinc-800 -translate-y-1/2 z-0"></div>
               
@@ -248,16 +247,16 @@ const Dashboard = () => {
         </div>
 
         {/* SECTION 2: Attack Simulator & Fast-Fail Log */}
-        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex flex-col h-[500px]">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-2">
-            <AlertTriangle className="text-rose-500" size={20}/>
+        <div className="lg:col-span-6 bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 shadow-2xl flex flex-col min-h-0">
+          <h2 className="text-base font-semibold text-white flex items-center gap-2 mb-2">
+            <AlertTriangle className="text-rose-500" size={18}/>
             Attack Simulator & Fast-Fail Funnel
           </h2>
-          <p className="text-sm text-zinc-400 mb-6">
+          <p className="text-xs text-zinc-400 mb-3">
             Click a scenario to visualize how the Gateway intercepts malicious requests.
           </p>
           
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <AttackButton 
               title="Normal Request" 
               desc="Valid Signature & Nonce"
@@ -312,17 +311,17 @@ const Dashboard = () => {
         </div>
 
         {/* SECTIONS 3 & 4: Performance & Payload Metrics */}
-        <div className="lg:col-span-6 flex flex-col gap-6 h-[600px] sm:h-[500px]">
+        <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
           
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-4 sm:p-6 shadow-2xl flex-1 flex flex-col">
-             <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-4">
-              <Activity className="text-cyan-500" size={20}/>
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 shadow-2xl flex-1 flex flex-col min-h-0">
+             <h2 className="text-base font-semibold text-white flex items-center gap-2 mb-2">
+              <Activity className="text-cyan-500" size={18}/>
               Concurrency Optimization
             </h2>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6 min-h-[300px] sm:min-h-0">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-0">
               
               <div className="h-full flex flex-col">
-                <h3 className="text-xs text-zinc-400 text-center mb-4 tracking-wider font-semibold">
+                <h3 className="text-xs text-zinc-400 text-center mb-2 tracking-wider font-semibold">
                   Throughput (RPS) <span className="text-emerald-400 ml-1 bg-emerald-500/10 px-2 py-0.5 rounded">+437%</span>
                 </h3>
                 <div className="flex-1 min-h-0">
@@ -339,7 +338,7 @@ const Dashboard = () => {
               </div>
 
               <div className="h-full flex flex-col">
-                <h3 className="text-xs text-zinc-400 text-center mb-4 tracking-wider font-semibold">
+                <h3 className="text-xs text-zinc-400 text-center mb-2 tracking-wider font-semibold">
                   P95 Latency (ms) <span className="text-cyan-400 ml-1 bg-cyan-500/10 px-2 py-0.5 rounded">-94%</span>
                 </h3>
                 <div className="flex-1 min-h-0">
@@ -358,24 +357,24 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-5 shadow-2xl h-[170px] flex flex-col justify-center">
-            <div className="flex justify-between items-start mb-2">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 shadow-2xl flex-1 flex flex-col justify-center min-h-0">
+            <div className="flex justify-between items-start mb-3">
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
                 <Lock className="text-purple-500" size={18}/>
                 Header Payload Overhead
               </h2>
             </div>
             
-            <div className="flex items-center flex-1">
-              <div className="w-[120px] h-full">
+            <div className="flex items-center flex-1 min-h-0">
+              <div className="w-[140px] h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={payloadData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={30}
-                      outerRadius={45}
+                      innerRadius={40}
+                      outerRadius={55}
                       paddingAngle={5}
                       dataKey="value"
                       stroke="none"
@@ -392,14 +391,14 @@ const Dashboard = () => {
               <div className="flex-1 pl-4 flex flex-col justify-center">
                 <div className="flex gap-6 mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-blue-500"></div>
+                    <div className="w-3.5 h-3.5 rounded bg-blue-500"></div>
                     <div>
                       <div className="text-sm font-medium text-white leading-tight">RSA-2048</div>
                       <div className="text-xs text-zinc-400">499 Bytes</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-emerald-500"></div>
+                    <div className="w-3.5 h-3.5 rounded bg-emerald-500"></div>
                     <div>
                       <div className="text-sm font-medium text-white leading-tight">ECDSA P-256</div>
                       <div className="text-xs text-zinc-400">243 Bytes</div>
@@ -500,13 +499,13 @@ const Dashboard = () => {
 // --- Helper Components ---
 
 const Node = ({ icon, title, active, isGateway = false, isError = false }: { icon: React.ReactNode, title: string, active?: boolean, isGateway?: boolean, isError?: boolean }) => (
-  <div className={`relative z-10 flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 transition-all duration-500 bg-zinc-950 
+  <div className={`relative z-10 flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 transition-all duration-500 bg-zinc-950 
     ${active && !isGateway && !isError ? 'border-cyan-500 shadow-[0_0_25px_rgba(6,182,212,0.4)] transform scale-105' : ''}
     ${active && isGateway && !isError ? 'border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.4)] transform scale-105' : ''}
     ${isError ? 'border-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.4)] transform scale-105' : ''}
     ${!active && !isError ? 'border-zinc-800' : ''}
   `}>
-    <div className={`mb-2 sm:mb-3 transition-colors duration-500 
+    <div className={`mb-1 sm:mb-2 transition-colors duration-500 
       ${active && !isGateway && !isError ? 'text-cyan-400' : ''} 
       ${active && isGateway && !isError ? 'text-emerald-400' : ''} 
       ${isError ? 'text-rose-500' : ''}
@@ -514,7 +513,7 @@ const Node = ({ icon, title, active, isGateway = false, isError = false }: { ico
     `}>
       {icon}
     </div>
-    <span className={`text-[11px] sm:text-xs font-semibold text-center leading-tight px-2 
+    <span className={`text-[10px] sm:text-[11px] font-semibold text-center leading-tight px-1 
       ${active || isError ? 'text-white' : 'text-zinc-400'}
     `}>
       {title}

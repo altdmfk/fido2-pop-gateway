@@ -4,6 +4,9 @@
 body {
   background-color: var(--color-zinc-950);
   color: var(--color-slate-200);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Custom scrollbar for a sleeker look */
