@@ -1,8 +1,10 @@
-import sys
+import hashlib
 import os
-import httpx
+import sys
 import time
+
 from colorama import Fore, Style, init
+import httpx
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from client_simulator.fido2_signer import FIDO2ClientSimulator
@@ -64,7 +66,6 @@ def run():
     print_result("3. Replay Attack", resp3.status_code, elapsed3, resp3.status_code == 401)
 
     # 4. Body 변조 (단순)
-    import hashlib
     valid_body = b'{"data": "valid"}'
     tampered_body = b'{"malicious": "payload"}'
     

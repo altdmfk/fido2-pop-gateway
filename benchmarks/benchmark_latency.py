@@ -1,9 +1,11 @@
-import os
-import sys
-import httpx
-import time
-import json
 import base64
+import json
+import os
+import random
+import sys
+import time
+
+import httpx
 
 # Ensure the root project directory is in the python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -14,11 +16,11 @@ from client_simulator.rsa_signer import RSAPoPClientSimulator
 BASE_URL = os.environ.get("GATEWAY_URL", "http://127.0.0.1:8001")
 ITERATIONS = 100
 
+
 def get_auth_token():
     resp = httpx.post(f"{BASE_URL}/auth/token", data={"username": "testuser", "password": "secret"})
     return resp.json()["access_token"]
 
-import random
 
 def get_nonce():
     fake_ip = f"192.168.{random.randint(1,255)}.{random.randint(1,255)}"

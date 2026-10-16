@@ -1,10 +1,12 @@
+import base64
 import hashlib
 import time
-import base64
-from typing import Tuple, Dict
+from typing import Dict, Tuple
+
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+
 
 class FIDO2ClientSimulator:
     def __init__(self):
@@ -15,60 +17,68 @@ class FIDO2ClientSimulator:
     def get_public_key_pem(self) -> str:
         return self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
         ).decode("utf-8")
 
-    def generate_canonical_payload(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "", timestamp: int = 0) -> bytes:
+    def generate_canonical_payload(
+        self,
+        method: str,
+        host: str,
+        path: str,
+        *,
+        query: str = "",
+        body: bytes = b"",
+        nonce: str = "",
+        timestamp: int = 0,
+    ) -> bytes:
         body_hash = hashlib.sha256(body).hexdigest()
         canonical_str = f"{method.upper()}\n{host}\n{path}\n{query}\n{body_hash}\n{nonce}\n{timestamp}"
         return canonical_str.encode("utf-8")
 
-    def sign_request(self, method: str, host: str, path: str, *, query: str = "", body: bytes = b"", nonce: str = "") -> Tuple[Dict[str, str], bytes]:
+    def sign_request(
+        self,
+        method: str,
+        host: str,
+        path: str,
+        *,
+        query: str = "",
+        body: bytes = b"",
+        nonce: str = "",
+    ) -> Tuple[Dict[str, str], bytes]:
         timestamp = int(time.time())
-        payload = self.generate_canonical_payload(method, host, path, query=query, body=body, nonce=nonce, timestamp=timestamp)
-        
-        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
-        
+        payload = self.generate_canonical_payload(
+            method, host, path, query=query, body=body, nonce=nonce, timestamp=timestamp
+        )
+
         signature = self.private_key.sign(
             payload,
-            ec.ECDSA(hashes.SHA256())
+            ec.ECDSA(hashes.SHA256()),
         )
-        
+
+        # Convert DER signature into raw IEEE P1363 (r || s) 64-byte representation
         r, s = decode_dss_signature(signature)
         raw_signature = r.to_bytes(32, byteorder="big") + s.to_bytes(32, byteorder="big")
-        
         signature_b64 = base64.urlsafe_b64encode(raw_signature).decode().rstrip("=")
-        
         body_hash = hashlib.sha256(body).hexdigest()
+
         headers = {
             "Host": host,
             "X-FIDO2-Credential-ID": self.credential_id,
             "X-FIDO2-Signature": signature_b64,
             "X-FIDO2-Nonce": nonce,
             "X-FIDO2-Timestamp": str(timestamp),
-            "X-Body-Digest": f"sha256={body_hash}"
+            "X-Body-Digest": f"sha256={body_hash}",
         }
         return headers, payload
 
+
 if __name__ == "__main__":
     import json
-    
-    # 1. Instantiate FIDO2ClientSimulator
+
     simulator = FIDO2ClientSimulator()
-    
-    # 2. Generate dummy values
     method = "GET"
+    host = "127.0.0.1:8000"
     path = "/api/v1/resource"
-    query = ""
-    body = b""
-    nonce = "demo-nonce-1234"
-    
-    # 3. Call sign_request to generate headers
-    headers, payload = simulator.sign_request(method, path, query=query, body=body, nonce=nonce)
-    
-    # 4. Pretty-print the resulting dictionary
+    headers, payload = simulator.sign_request(method, host, path, query="", body=b"", nonce="demo-nonce-1234")
     print("Generated FIDO2 PoP Headers:")
     print(json.dumps(headers, indent=4))
-    
-    # 5. Print clear confirmation message
-    print("\n[INFO] FIDO2 client simulation executed successfully.")

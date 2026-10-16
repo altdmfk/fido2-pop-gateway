@@ -1,12 +1,13 @@
-import time
 import base64
 import hashlib
+import random
+import time
 from typing import Dict, Tuple
-from locust import HttpUser, task, between, events
+import uuid
 
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
+from locust import HttpUser, between, events, task
 
 # --- FIDO2 Signer Helper ---
 class LoadTestSigner:
@@ -65,7 +66,6 @@ class FIDO2User(HttpUser):
         self.signer = LoadTestSigner()
         
         # Generate a unique user per Locust worker to avoid credential limits
-        import uuid
         self.username = f"locust_user_{uuid.uuid4().hex[:8]}"
         
         login_resp = self.client.post("/auth/token", data={"username": self.username, "password": "secret"})
@@ -95,7 +95,6 @@ class FIDO2User(HttpUser):
             return
 
         # 1. Fetch a fresh Nonce
-        import random
         fake_ip = f"192.168.{random.randint(1,255)}.{random.randint(1,255)}"
         nonce_resp = self.client.get("/auth/nonce", headers={"X-Forwarded-For": fake_ip})
         if nonce_resp.status_code != 200:
