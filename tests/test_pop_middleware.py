@@ -154,3 +154,108 @@ def test_invalid_body_digest_header(setup_client, mock_upstream):
     # Since the claimed digest in the header doesn't match the signature, it fails early with 403.
     assert response.status_code == 403
     assert "Invalid FIDO2 PoP signature" in response.text
+
+
+def test_zero_trust_inbound_header_stripping(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+    method = "GET"
+    path = "/api/v1/resource"
+    pop_headers, _ = simulator.sign_request(method, host="testserver", path=path, body=b"", nonce=nonce)
+    headers = {
+        "Authorization": f"Bearer {jwt_token}",
+        "X-Authenticated-User": "malicious_injected_user",
+        "X-Authenticated-Role": "malicious_injected_role",
+        "X-Forwarded-User": "malicious_injected_user",
+        "X-Authenticated-Admin": "true",
+    }
+    headers.update(pop_headers)
+
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+
+    outbound_request = mock_upstream.call_args[0][0]
+    assert outbound_request.headers.get("x-authenticated-user") == "testuser"
+    assert outbound_request.headers.get("x-authenticated-role") == "admin"
+    assert outbound_request.headers.get("x-forwarded-user") == "testuser"
+    assert "x-authenticated-admin" not in outbound_request.headers
+
+
+def test_timestamp_expired(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+    method = "GET"
+    path = "/api/v1/resource"
+    pop_headers, _ = simulator.sign_request(method, host="testserver", path=path, body=b"", nonce=nonce)
+    headers = {"Authorization": f"Bearer {jwt_token}", **pop_headers}
+    headers["X-FIDO2-Timestamp"] = str(int(time.time()) - 120)
+
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert "Timestamp expired" in response.text
+
+
+def test_invalid_timestamp_format(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+    method = "GET"
+    path = "/api/v1/resource"
+    pop_headers, _ = simulator.sign_request(method, host="testserver", path=path, body=b"", nonce=nonce)
+    headers = {"Authorization": f"Bearer {jwt_token}", **pop_headers}
+    headers["X-FIDO2-Timestamp"] = "invalid_timestamp"
+
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert "Invalid timestamp format" in response.text
+
+
+def test_nonce_expired(setup_client, mock_upstream):
+    from app.core.nonce_store import nonce_store
+
+    simulator, jwt_token, _ = setup_client
+    expired_nonce = "expired-test-nonce"
+    with nonce_store._lock:
+        nonce_store._store[expired_nonce] = time.time() - 120
+
+    method = "GET"
+    path = "/api/v1/resource"
+    pop_headers, _ = simulator.sign_request(method, host="testserver", path=path, body=b"", nonce=expired_nonce)
+    headers = {"Authorization": f"Bearer {jwt_token}", **pop_headers}
+
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert "Nonce has expired" in response.text
+
+
+def test_jwt_key_binding_mismatch(setup_client, mock_upstream):
+    simulator, _, nonce = setup_client
+
+    resp = client.post(
+        "/auth/token",
+        data={"username": "testuser", "password": "secret"},
+        headers={"X-FIDO2-Credential-ID": "bound-to-different-key"},
+    )
+    bound_token = resp.json()["access_token"]
+
+    method = "GET"
+    path = "/api/v1/resource"
+    pop_headers, _ = simulator.sign_request(method, host="testserver", path=path, body=b"", nonce=nonce)
+    headers = {"Authorization": f"Bearer {bound_token}", **pop_headers}
+
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert "JWT is not bound to this key" in response.text
+
+
+def test_streaming_body_digest_mismatch(setup_client, mock_upstream):
+    simulator, jwt_token, nonce = setup_client
+
+    valid_signed_body = b'{"amount": 100}'
+    tampered_body = b'{"amount": 99999}'
+
+    pop_headers, _ = simulator.sign_request(
+        "POST", host="testserver", path="/api/v1/resource", body=valid_signed_body, nonce=nonce
+    )
+    headers = {"Authorization": f"Bearer {jwt_token}", **pop_headers}
+
+    response = client.post("/api/v1/resource", headers=headers, content=tampered_body)
+    assert response.status_code == 400
+    assert "Body digest mismatch" in response.text
+
