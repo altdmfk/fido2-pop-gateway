@@ -1,20 +1,20 @@
 {
     "iterations": 100,
     "mode_a_jwt_only": {
-        "mean_ms": 4.36,
-        "p95_ms": 8.11,
+        "mean_ms": 2.66,
+        "p95_ms": 2.95,
         "payload_bytes": 0
     },
     "mode_b_rsa2048_pop": {
-        "mean_ms": 4.87,
-        "p95_ms": 7.61,
+        "mean_ms": 4.42,
+        "p95_ms": 5.75,
         "payload_bytes": 499,
-        "relative_overhead_pct": 11.85
+        "relative_overhead_pct": 65.99
     },
     "mode_c_ecdsa_p256_pop": {
-        "mean_ms": 7.27,
-        "p95_ms": 15.02,
+        "mean_ms": 4.67,
+        "p95_ms": 6.25,
         "payload_bytes": 243,
-        "relative_overhead_pct": 66.96
+        "relative_overhead_pct": 75.52
     }
 }

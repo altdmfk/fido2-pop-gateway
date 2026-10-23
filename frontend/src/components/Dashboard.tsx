@@ -17,7 +17,10 @@ const Dashboard = () => {
   // --- States for Architecture Flow & Attack Simulator ---
   const [isSimulating, setIsSimulating] = useState(false);
   const [packetStage, setPacketStage] = useState(0); 
-  const [currentScenario, setCurrentScenario] = useState<'normal' | 'hijack' | 'replay' | 'tamper' | null>(null);
+  const [currentScenario, setCurrentScenario] = useState<'normal' | 'hijack' | 'replay' | 'tamper' | 'injection' | null>(null);
+
+  // --- States for Performance Tab ---
+  const [activePerfTab, setActivePerfTab] = useState<'latency' | 'concurrency'>('latency');
 
   // --- States for Paper Modal ---
   const [isPaperOpen, setIsPaperOpen] = useState(false);
@@ -44,10 +47,10 @@ const Dashboard = () => {
       type,
       message,
     };
-    setLogs(prev => [...prev, newLog].slice(-20));
+    setLogs(prev => [...prev, newLog].slice(-25));
   };
 
-  const runSimulation = (scenario: 'normal' | 'hijack' | 'replay' | 'tamper') => {
+  const runSimulation = (scenario: 'normal' | 'hijack' | 'replay' | 'tamper' | 'injection') => {
     if (isSimulating) return;
     setIsSimulating(true);
     setCurrentScenario(scenario);
@@ -58,82 +61,110 @@ const Dashboard = () => {
     
     if (scenario === 'normal') {
       setTimeout(() => {
-        addLog('info', '[TPM] Hardware signing complete. (ECDSA P-256)');
+        addLog('info', '[TPM] Hardware signing canonical payload: Method, Host, Path, Query, SHA-256(Body), Nonce, Timestamp');
+        addLog('info', '[TPM] ECDSA P-256 signature generated. Attached X-FIDO2-* headers.');
         setPacketStage(2); // Move to Gateway
-      }, 1000);
+      }, 900);
       setTimeout(() => {
-        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline.');
-        addLog('info', '[Gateway] ✓ Step 1: Signature Header Present');
-        addLog('info', '[Gateway] ✓ Step 2: Timestamp Range OK');
-        addLog('info', '[Gateway] ✓ Step 3: Nonce Cache Verification OK');
-        addLog('info', '[Gateway] ✓ Step 4: Payload Digest Match OK');
-        addLog('info', '[Gateway] ✓ Step 5: ECDSA Math Verification OK');
+        addLog('info', '[Gateway] Packet received. Executing Fast-Fail 6-stage verification pipeline:');
+        addLog('info', '[Gateway] ✓ Step 1: Bearer JWT Validated (sub: "testuser", role: "admin")');
+        addLog('info', '[Gateway] ✓ Step 2: Required PoP Headers & Fresh Timestamp (tolerance <= 60s) OK');
+        addLog('info', '[Gateway] ✓ Step 3: Single-Use Nonce Consumed Atomically (Anti-Replay)');
+        addLog('info', '[Gateway] ✓ Step 4: Key Confirmation Binding (cnf.kid) OK');
+        addLog('info', '[Gateway] ✓ Step 5: FAPI Canonical Payload & Async ECDSA Verification OK (Worker Thread Pool / GIL released)');
+        addLog('info', '[Gateway] ✓ Step 6: Streaming Body Digest & Spooled Buffer Match OK');
+        addLog('info', '[Gateway] 🛡️ Zero-Trust Sanitization: Inbound headers dropped; injected verified identity.');
         setPacketStage(3); // Move to Upstream
-      }, 2000);
+      }, 1900);
       setTimeout(() => {
-        addLog('success', '[Upstream] [PASS] 200 OK - Request processed successfully.');
+        addLog('success', '[Upstream] [PASS] 200 OK - Forwarded to Upstream with verified context.');
         setPacketStage(0);
         setIsSimulating(false);
-      }, 3000);
+      }, 2900);
       
     } else if (scenario === 'hijack') {
       setTimeout(() => {
-        addLog('error', '[Network] Warning: Attacker intercepted JWT. Bypassing TPM hardware...');
-        setPacketStage(2); // Move to Gateway directly (logically)
-      }, 1000);
+        addLog('error', '[Network] Warning: Attacker intercepted JWT. Transmitting without hardware private key...');
+        setPacketStage(2); // Move to Gateway directly
+      }, 900);
       setTimeout(() => {
-        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline.');
-        addLog('error', '[Gateway] ✗ Step 1: Signature Header Missing');
+        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline:');
+        addLog('info', '[Gateway] ✓ Step 1: Bearer Token Present');
+        addLog('error', '[Gateway] ✗ Step 2: Missing Required FIDO2 PoP Headers (Signature missing)');
         setPacketStage(4); // Blocked at Gateway
-      }, 2000);
+      }, 1900);
       setTimeout(() => {
         addLog('error', '[Gateway] [BLOCKED] 401 Unauthorized - Session Hijacking Detected. Connection Terminated.');
         setPacketStage(0);
         setIsSimulating(false);
-      }, 3500);
+      }, 3200);
       
     } else if (scenario === 'replay') {
       setTimeout(() => {
         addLog('info', '[TPM] Hardware signing complete. (ECDSA P-256)');
         setPacketStage(2); // Move to Gateway
-      }, 1000);
+      }, 900);
       setTimeout(() => {
-        addLog('error', '[Network] Warning: Attacker is replaying a previously intercepted packet!');
-        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline.');
-        addLog('info', '[Gateway] ✓ Step 1: Signature Header Present');
-        addLog('info', '[Gateway] ✓ Step 2: Timestamp Range OK');
-        addLog('error', '[Gateway] ✗ Step 3: Nonce Already Consumed in Cache');
+        addLog('error', '[Network] Warning: Attacker replaying captured packet with previously used Nonce...');
+        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline:');
+        addLog('info', '[Gateway] ✓ Step 1: Bearer Token Present');
+        addLog('info', '[Gateway] ✓ Step 2: Signature Headers & Timestamp Freshness OK');
+        addLog('error', '[Gateway] ✗ Step 3: Nonce Already Consumed in Cache (Atomic pop failed)');
         setPacketStage(4); // Blocked at Gateway
-      }, 2000);
+      }, 1900);
       setTimeout(() => {
         addLog('error', '[Gateway] [BLOCKED] 401 Unauthorized - Replay Attack Detected. Connection Terminated.');
         setPacketStage(0);
         setIsSimulating(false);
-      }, 3500);
+      }, 3200);
       
     } else if (scenario === 'tamper') {
       setTimeout(() => {
-        addLog('info', '[TPM] Hardware signing complete. (ECDSA P-256)');
+        addLog('info', '[TPM] Hardware signing complete. (ECDSA P-256 over original payload)');
         setPacketStage(2); // Move to Gateway
-      }, 1000);
+      }, 900);
       setTimeout(() => {
-        addLog('error', '[Network] Warning: Attacker modified the HTTP Body payload in transit!');
-        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline.');
-        addLog('info', '[Gateway] ✓ Step 1: Signature Header Present');
-        addLog('info', '[Gateway] ✓ Step 2: Timestamp Range OK');
-        addLog('info', '[Gateway] ✓ Step 3: Nonce Cache Verification OK');
-        addLog('error', '[Gateway] ✗ Step 4: Payload Digest Mismatch (Body altered)');
+        addLog('error', '[Network] Warning: Attacker modified query string or body payload in transit!');
+        addLog('info', '[Gateway] Packet received. Starting Fast-Fail verification pipeline:');
+        addLog('info', '[Gateway] ✓ Step 1: Bearer Token Present');
+        addLog('info', '[Gateway] ✓ Step 2: Signature Headers & Timestamp Freshness OK');
+        addLog('info', '[Gateway] ✓ Step 3: Single-Use Nonce Consumed Atomically');
+        addLog('error', '[Gateway] ✗ Step 5/6: Payload Integrity Verification Failed (Digest/Signature mismatch)');
         setPacketStage(4); // Blocked at Gateway
-      }, 2000);
+      }, 1900);
       setTimeout(() => {
-        addLog('error', '[Gateway] [BLOCKED] 403 Forbidden - Payload Tampering Detected. Connection Terminated.');
+        addLog('error', '[Gateway] [BLOCKED] 400/403 - Request Tampering Detected. Connection Terminated.');
         setPacketStage(0);
         setIsSimulating(false);
-      }, 3500);
+      }, 3200);
+
+    } else if (scenario === 'injection') {
+      setTimeout(() => {
+        addLog('error', '[Network] Warning: Attacker injected forged "X-Authenticated-Admin: true" header!');
+        setPacketStage(2); // Move to Gateway
+      }, 900);
+      setTimeout(() => {
+        addLog('info', '[Gateway] Packet received. Evaluating inbound request:');
+        addLog('info', '[Gateway] ✓ Fast-Fail PoP Pipeline Passed (Valid Token & Hardware Signature)');
+        addLog('info', '[Gateway] 🛡️ Zero-Trust Policy: Dropped client "X-Authenticated-Admin" header');
+        addLog('info', '[Gateway] 🛡️ Injected verified identity: User="testuser", Role="user"');
+        setPacketStage(3); // Safe to Upstream
+      }, 1900);
+      setTimeout(() => {
+        addLog('success', '[Upstream] [PASS] 200 OK - Privilege escalation prevented. Upstream received sanitized identity.');
+        setPacketStage(0);
+        setIsSimulating(false);
+      }, 3000);
     }
   };
 
-  // --- Chart Data ---
+  // --- Real Benchmark Chart Data (Synchronized with docs/benchmark_results.json) ---
+  const modeLatencyData = [
+    { name: 'Mode A (JWT)', Mean: 2.66, P95: 2.95 },
+    { name: 'Mode B (RSA)', Mean: 4.42, P95: 5.75 },
+    { name: 'Mode C (ECDSA)', Mean: 4.67, P95: 6.25 },
+  ];
+
   const throughputData = [
     { name: 'Sync (O(N))', RPS: 145 },
     { name: 'Async (O(1))', RPS: 780 },
@@ -196,7 +227,7 @@ const Dashboard = () => {
               
               {/* Nodes */}
               <Node icon={<Cpu size={28} />} title="Client Application" />
-              <Node icon={<Lock size={28} />} title="FIDO2 TPM Hardware" active={packetStage === 1 || packetStage === 2} isError={packetStage > 0 && currentScenario !== 'normal'} />
+              <Node icon={<Lock size={28} />} title="FIDO2 TPM Hardware" active={packetStage === 1 || packetStage === 2} isError={packetStage > 0 && currentScenario !== 'normal' && currentScenario !== 'injection'} />
               <Node icon={<Shield size={28} />} title="PoP Gateway" active={packetStage === 2 || packetStage === 3 || packetStage === 4} isGateway isError={packetStage === 4} />
               <Node icon={<Server size={28} />} title="Upstream Server" active={packetStage === 3} />
 
@@ -213,13 +244,22 @@ const Dashboard = () => {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.8, ease: "easeInOut" }}
                   >
-                    <div className={`text-xs font-bold px-3 py-1.5 rounded mb-3 whitespace-nowrap backdrop-blur-md border ${currentScenario === 'normal' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-rose-500/10 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]'}`}>
-                      {currentScenario === 'normal' ? 'JWT + Nonce + ECDSA Sig' : 
+                    <div className={`text-xs font-bold px-3 py-1.5 rounded mb-3 whitespace-nowrap backdrop-blur-md border ${
+                      currentScenario === 'normal' || currentScenario === 'injection'
+                        ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
+                        : 'bg-rose-500/10 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                    }`}>
+                      {currentScenario === 'normal' ? 'JWT + Nonce + FAPI Query + ECDSA Sig' : 
                        currentScenario === 'hijack' ? 'JWT (Missing Sig)' :
                        currentScenario === 'replay' ? 'JWT + Used Nonce + Sig' :
-                       'JWT + Modified Body + Sig'}
+                       currentScenario === 'tamper' ? 'JWT + Modified Body/Query + Sig' :
+                       'JWT + Forged Header (Sanitized)'}
                     </div>
-                    <div className={`w-4 h-4 rounded-full ${currentScenario === 'normal' ? 'bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]'}`}></div>
+                    <div className={`w-4 h-4 rounded-full ${
+                      currentScenario === 'normal' || currentScenario === 'injection'
+                        ? 'bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,1)]' 
+                        : 'bg-rose-500 shadow-[0_0_20px_rgba(244,63,94,1)]'
+                    }`}></div>
                   </motion.div>
                 )}
                 {/* Blocked Animation at Gateway */}
@@ -253,13 +293,13 @@ const Dashboard = () => {
             Attack Simulator & Fast-Fail Funnel
           </h2>
           <p className="text-xs text-zinc-400 mb-3">
-            Click a scenario to visualize how the Gateway intercepts malicious requests.
+            Click a scenario to visualize how the Gateway intercepts malicious requests and sanitizes identity.
           </p>
           
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-3">
             <AttackButton 
               title="Normal Request" 
-              desc="Valid Signature & Nonce"
+              desc="Valid Sig & FAPI Query"
               color="emerald" 
               disabled={isSimulating}
               onClick={() => runSimulation('normal')} 
@@ -280,16 +320,23 @@ const Dashboard = () => {
             />
             <AttackButton 
               title="Tampering" 
-              desc="Modified Payload Body"
+              desc="Modified Payload/Query"
               color="rose" 
               disabled={isSimulating}
               onClick={() => runSimulation('tamper')} 
             />
+            <AttackButton 
+              title="Header Injection" 
+              desc="Zero-Trust Sanitization"
+              color="amber" 
+              disabled={isSimulating}
+              onClick={() => runSimulation('injection')} 
+            />
           </div>
 
-          <div className="flex-1 min-h-0 bg-black/80 rounded-lg border border-zinc-800 p-4 font-mono text-sm overflow-hidden flex flex-col relative shadow-inner">
-            <div className="flex items-center gap-2 text-zinc-500 mb-3 pb-3 border-b border-zinc-900">
-              <Terminal size={14} /> <span>Gateway Terminal / Server Log</span>
+          <div className="flex-1 min-h-0 bg-black/80 rounded-lg border border-zinc-800 p-4 font-mono text-xs overflow-hidden flex flex-col relative shadow-inner">
+            <div className="flex items-center gap-2 text-zinc-500 mb-2 pb-2 border-b border-zinc-900">
+              <Terminal size={14} /> <span>Gateway Terminal / Fast-Fail Pipeline Log</span>
             </div>
             <div ref={logsContainerRef} className="flex-1 min-h-0 overflow-y-auto pr-2 scroll-smooth">
               {logs.length === 0 && <span className="text-zinc-600 italic">Waiting for incoming requests...</span>}
@@ -297,11 +344,11 @@ const Dashboard = () => {
                 {logs.map(log => (
                   <motion.div 
                     key={log.id} 
-                    initial={{ opacity: 0, x: -10 }} 
+                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className={`mb-2 font-medium ${log.type === 'success' ? 'text-emerald-400' : log.type === 'error' ? 'text-rose-500' : 'text-cyan-400'}`}
+                    className={`mb-1.5 font-medium leading-relaxed ${log.type === 'success' ? 'text-emerald-400' : log.type === 'error' ? 'text-rose-500' : 'text-cyan-400'}`}
                   >
-                    <span className="text-zinc-600 mr-3">[{log.time}]</span>
+                    <span className="text-zinc-600 mr-2">[{log.time}]</span>
                     {log.message}
                   </motion.div>
                 ))}
@@ -313,52 +360,113 @@ const Dashboard = () => {
         {/* SECTIONS 3 & 4: Performance & Payload Metrics */}
         <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
           
+          {/* Performance Analytics Card */}
           <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 shadow-2xl flex-1 flex flex-col min-h-0">
-             <h2 className="text-base font-semibold text-white flex items-center gap-2 mb-2">
-              <Activity className="text-cyan-500" size={18}/>
-              Concurrency Optimization
-            </h2>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-0">
-              
-              <div className="h-full flex flex-col">
-                <h3 className="text-xs text-zinc-400 text-center mb-2 tracking-wider font-semibold">
-                  Throughput (RPS) <span className="text-emerald-400 ml-1 bg-emerald-500/10 px-2 py-0.5 rounded">+437%</span>
-                </h3>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={throughputData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                      <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
-                      <RechartsTooltip cursor={{fill: '#27272a'}} contentStyle={{backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', borderRadius: '8px'}} />
-                      <Bar dataKey="RPS" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <Activity className="text-cyan-500" size={18}/>
+                Performance Analytics
+              </h2>
+              {/* Tab Selector */}
+              <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => setActivePerfTab('latency')}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    activePerfTab === 'latency' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Verification Latency
+                </button>
+                <button
+                  onClick={() => setActivePerfTab('concurrency')}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    activePerfTab === 'concurrency' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Concurrency Scaling
+                </button>
               </div>
-
-              <div className="h-full flex flex-col">
-                <h3 className="text-xs text-zinc-400 text-center mb-2 tracking-wider font-semibold">
-                  P95 Latency (ms) <span className="text-cyan-400 ml-1 bg-cyan-500/10 px-2 py-0.5 rounded">-94%</span>
-                </h3>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={latencyData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                      <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
-                      <RechartsTooltip cursor={{fill: '#27272a'}} contentStyle={{backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', borderRadius: '8px'}} />
-                      <Bar dataKey="Latency" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={40} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
             </div>
+
+            {activePerfTab === 'latency' ? (
+              /* TAB 1: 3-Mode Verification Latency (Mean & P95) */
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between text-xs text-zinc-400 mb-2 px-1">
+                  <span>Measured 100 iterations (Mean & P95 ms)</span>
+                  <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Mode C: +2.01 ms over JWT
+                  </span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={modeLatencyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} unit="ms" />
+                      <RechartsTooltip cursor={{fill: '#27272a'}} contentStyle={{backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', borderRadius: '8px', fontSize: '12px'}} />
+                      <Bar dataKey="Mean" name="Mean Latency (ms)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={28} />
+                      <Bar dataKey="P95" name="P95 Latency (ms)" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={28} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-zinc-800/80 text-center">
+                  <div className="bg-zinc-950/60 p-1.5 rounded border border-zinc-800">
+                    <div className="text-[10px] text-zinc-400">Mode A (JWT)</div>
+                    <div className="text-xs font-bold text-white">2.66 ms <span className="text-[10px] text-zinc-500 font-normal">(Base)</span></div>
+                  </div>
+                  <div className="bg-zinc-950/60 p-1.5 rounded border border-zinc-800">
+                    <div className="text-[10px] text-zinc-400">Mode B (RSA)</div>
+                    <div className="text-xs font-bold text-white">4.42 ms <span className="text-[10px] text-zinc-400 font-normal">(+66%)</span></div>
+                  </div>
+                  <div className="bg-zinc-950/60 p-1.5 rounded border border-emerald-500/30">
+                    <div className="text-[10px] text-emerald-400 font-medium">Mode C (ECDSA)</div>
+                    <div className="text-xs font-bold text-emerald-400">4.67 ms <span className="text-[10px] text-emerald-500/80 font-normal">(P95: 6.25ms)</span></div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: Concurrency Optimization (Sync vs Async RPS & Latency) */
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-0">
+                <div className="h-full flex flex-col">
+                  <h3 className="text-xs text-zinc-400 text-center mb-1 font-semibold">
+                    Throughput (RPS) <span className="text-emerald-400 ml-1 bg-emerald-500/10 px-2 py-0.5 rounded">+437%</span>
+                  </h3>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={throughputData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                        <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                        <RechartsTooltip cursor={{fill: '#27272a'}} contentStyle={{backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', borderRadius: '8px'}} />
+                        <Bar dataKey="RPS" fill="#10b981" radius={[4, 4, 0, 0]} barSize={36} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="h-full flex flex-col">
+                  <h3 className="text-xs text-zinc-400 text-center mb-1 font-semibold">
+                    P95 Latency (ms) <span className="text-cyan-400 ml-1 bg-cyan-500/10 px-2 py-0.5 rounded">-94%</span>
+                  </h3>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={latencyData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                        <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                        <RechartsTooltip cursor={{fill: '#27272a'}} contentStyle={{backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', borderRadius: '8px'}} />
+                        <Bar dataKey="Latency" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={36} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* SECTION 4: Header Payload Overhead */}
           <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 shadow-2xl flex-1 flex flex-col justify-center min-h-0">
-            <div className="flex justify-between items-start mb-3">
+            <div className="flex justify-between items-start mb-2">
               <h2 className="text-base font-semibold text-white flex items-center gap-2">
                 <Lock className="text-purple-500" size={18}/>
                 Header Payload Overhead
@@ -373,8 +481,8 @@ const Dashboard = () => {
                       data={payloadData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={55}
+                      innerRadius={38}
+                      outerRadius={52}
                       paddingAngle={5}
                       dataKey="value"
                       stroke="none"
@@ -389,7 +497,7 @@ const Dashboard = () => {
               </div>
               
               <div className="flex-1 pl-4 flex flex-col justify-center">
-                <div className="flex gap-6 mb-3">
+                <div className="flex gap-6 mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-3.5 h-3.5 rounded bg-blue-500"></div>
                     <div>
@@ -407,7 +515,7 @@ const Dashboard = () => {
                 </div>
                 <p className="text-xs text-zinc-400 bg-zinc-950/80 py-2 px-3 rounded-md border border-zinc-800/80 inline-block">
                   <span className="text-emerald-400 font-semibold mr-1">51.3% bandwidth reduction</span> 
-                  for constrained hardware environments.
+                  (243B vs 499B) with superior 128-bit security.
                 </p>
               </div>
             </div>
@@ -437,7 +545,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <FileText className="text-blue-400" size={20} />
-                  FIDO2 PoP Gateway {paperLang === 'ko' ? '논문' : 'Paper'}
+                  FIDO2 PoP Gateway {paperLang === 'ko' ? '연구 논문 (Korean)' : 'Research Paper (English)'}
                 </h3>
                 <div className="flex items-center gap-4">
                   <div className="flex bg-zinc-950 border border-zinc-700 rounded-lg overflow-hidden p-0.5">
@@ -521,21 +629,22 @@ const Node = ({ icon, title, active, isGateway = false, isError = false }: { ico
   </div>
 );
 
-const AttackButton = ({ title, desc, color, disabled, onClick }: { title: string, desc: string, color: 'emerald' | 'rose', disabled: boolean, onClick: () => void }) => {
+const AttackButton = ({ title, desc, color, disabled, onClick }: { title: string, desc: string, color: 'emerald' | 'rose' | 'amber', disabled: boolean, onClick: () => void }) => {
   const colorMap = {
     emerald: 'hover:bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-    rose: 'hover:bg-rose-500/10 border-rose-500/30 text-rose-400 hover:border-rose-500 hover:shadow-[0_0_15px_rgba(244,63,94,0.2)]'
+    rose: 'hover:bg-rose-500/10 border-rose-500/30 text-rose-400 hover:border-rose-500 hover:shadow-[0_0_15px_rgba(244,63,94,0.2)]',
+    amber: 'hover:bg-amber-500/10 border-amber-500/30 text-amber-400 hover:border-amber-500 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]'
   };
   
   return (
     <button 
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-start p-3.5 rounded-lg border transition-all duration-200 text-left bg-zinc-950/80 
+      className={`flex flex-col items-start p-2.5 sm:p-3 rounded-lg border transition-all duration-200 text-left bg-zinc-950/80 
       ${disabled ? 'opacity-50 cursor-not-allowed border-zinc-800' : `${colorMap[color]} group`}`}
     >
-      <span className="font-semibold text-sm group-hover:text-white transition-colors">{title}</span>
-      <span className="text-xs opacity-70 mt-1">{desc}</span>
+      <span className="font-semibold text-xs sm:text-sm group-hover:text-white transition-colors">{title}</span>
+      <span className="text-[10px] sm:text-xs opacity-70 mt-0.5">{desc}</span>
     </button>
   );
 };
